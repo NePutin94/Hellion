@@ -5,23 +5,15 @@
 #ifndef HELLION_VULKANHELPER_H
 #define HELLION_VULKANHELPER_H
 
-#define VK_USE_PLATFORM_WIN32_KHR
 #define GLFW_INCLUDE_VULKAN
 
 #include <GLFW/glfw3.h>
-
-#ifdef _WIN64
-#define GLFW_EXPOSE_NATIVE_WIN32
-#endif
-#ifdef __linux__
-#define GLFW_EXPOSE_NATIVE_X11
-#endif
-
-#include <GLFW/glfw3native.h>
 #include <vulkan/vulkan.hpp>
 #include <optional>
 #include <fmt/core.h>
 #include <vector>
+#include <set>
+#include <limits>
 
 namespace Hellion
 {
@@ -39,19 +31,36 @@ namespace Hellion
             }
         };
 
-        vk::UniqueInstance instance;
-        VkDebugUtilsMessengerEXT callback;
+        struct SwapChainSupportDetails
+        {
+            vk::SurfaceCapabilitiesKHR capabilities;
+            std::vector<vk::SurfaceFormatKHR> formats;
+            std::vector<vk::PresentModeKHR> presentModes;
+        };
+
+        vk::PhysicalDevice physicalDevice{nullptr};
+        vk::Instance instance{nullptr};
+        vk::DebugUtilsMessengerEXT debugMessenger{nullptr};
+        vk::DispatchLoaderDynamic dldi;
         vk::SurfaceKHR surface;
+        vk::Device device;
 
-        vk::PhysicalDevice physicalDevice;
-        vk::UniqueDevice device;
-
-        vk::Queue graphicsQueue;
         vk::Queue presentQueue;
+        vk::Queue graphicsQueue;
 
+        vk::SwapchainKHR swapChain;
+        std::vector<vk::Image> swapChainImages;
+        vk::Format swapChainImageFormat;
+        vk::Extent2D swapChainExtent;
+
+        std::vector<vk::ImageView> swapChainImageViews;
 
         const std::vector<const char*> validationLayers = {
                 "VK_LAYER_KHRONOS_validation"
+        };
+
+        const std::vector<const char*> deviceExtensions = {
+                VK_KHR_SWAPCHAIN_EXTENSION_NAME
         };
 
 #ifdef NDEBUG
@@ -71,7 +80,31 @@ namespace Hellion
 
         bool isSuitable(const vk::PhysicalDevice& device);
 
-        bool checkDeviceExtensionSupport(const vk::PhysicalDevice& device, const std::vector<const char*>& requestedExtensions);
+        bool checkDeviceExtensionSupport(const vk::PhysicalDevice& device);
+
+        void pickPhysicalDevice();
+
+        bool isDeviceSuitable(const vk::PhysicalDevice& device);
+
+        QueueFamilyIndices findQueueFamilies(const vk::PhysicalDevice& device);
+
+        void createLogicalDevice();
+
+        void createSurface(GLFWwindow* window);
+
+        void createSwapChain(GLFWwindow* window);
+
+        SwapChainSupportDetails querySwapChainSupport(const vk::PhysicalDevice& device);
+
+        vk::SurfaceFormatKHR chooseSwapSurfaceFormat(const std::vector<vk::SurfaceFormatKHR>& vector1);
+
+        vk::PresentModeKHR chooseSwapPresentMode(const std::vector<vk::PresentModeKHR>& vector1);
+
+        vk::Extent2D chooseSwapExtent(const vk::SurfaceCapabilitiesKHR& khr, GLFWwindow* window);
+
+        void createImageViews();
+
+        void createGraphicsPipeline();
 
     public:
         VulkanHelper() = default;
@@ -86,41 +119,6 @@ namespace Hellion
             fmt::println("validation layer: {}", pCallbackData->pMessage);
             return VK_FALSE;
         }
-
-        VkResult
-        CreateDebugUtilsMessengerEXT(VkInstance instance, const VkDebugUtilsMessengerCreateInfoEXT* pCreateInfo, const VkAllocationCallbacks* pAllocator,
-                                     VkDebugUtilsMessengerEXT* pCallback)
-        {
-            auto func = (PFN_vkCreateDebugUtilsMessengerEXT) vkGetInstanceProcAddr(instance, "vkCreateDebugUtilsMessengerEXT");
-            if(func != nullptr)
-            {
-                return func(instance, pCreateInfo, pAllocator, pCallback);
-            } else
-            {
-                return VK_ERROR_EXTENSION_NOT_PRESENT;
-            }
-        }
-
-        void DestroyDebugUtilsMessengerEXT(VkInstance instance, VkDebugUtilsMessengerEXT callback, const VkAllocationCallbacks* pAllocator)
-        {
-            auto func = (PFN_vkDestroyDebugUtilsMessengerEXT) vkGetInstanceProcAddr(instance, "vkDestroyDebugUtilsMessengerEXT");
-            if(func != nullptr)
-            {
-                func(instance, callback, pAllocator);
-            }
-        }
-
-        void pickPhysicalDevice();
-
-        bool isDeviceSuitable(const vk::PhysicalDevice& device);
-
-        QueueFamilyIndices findQueueFamilies(const vk::PhysicalDevice& device);
-
-        void createLogicalDevice();
-
-        void createSurface(GLFWwindow* window);
-
-        bool checkValidationLayerSupport();
     };
 }
 #endif //HELLION_VULKANHELPER_H
