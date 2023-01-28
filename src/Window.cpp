@@ -14,7 +14,11 @@ void Hellion::Window::initWindow()
 void Hellion::Window::mainLoop()
 {
     while(!glfwWindowShouldClose(window))
+    {
         glfwPollEvents();
+        vulkanHelper.drawFrame();
+    }
+    vulkanHelper.wait();
 }
 
 void Hellion::Window::cleanup()

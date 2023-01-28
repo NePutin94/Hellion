@@ -14,6 +14,7 @@
 #include <vector>
 #include <set>
 #include <limits>
+#include <fstream>
 
 namespace Hellion
 {
@@ -54,11 +55,24 @@ namespace Hellion
         vk::Extent2D swapChainExtent;
 
         std::vector<vk::ImageView> swapChainImageViews;
+        std::vector<vk::Framebuffer> swapChainFramebuffers;
+
+        vk::RenderPass renderPass;
+        vk::PipelineLayout pipelineLayout;
+        vk::Pipeline graphicsPipeline;
+
+        VkCommandPool commandPool;
+        std::vector<vk::CommandBuffer, std::allocator<vk::CommandBuffer>> commandBuffers;
+
+        std::vector<vk::Semaphore> imageAvailableSemaphores;
+        std::vector<vk::Semaphore> renderFinishedSemaphores;
+        std::vector<vk::Fence> inFlightFences;
+        size_t currentFrame = 0;
 
         const std::vector<const char*> validationLayers = {
                 "VK_LAYER_KHRONOS_validation"
         };
-
+        const int MAX_FRAMES_IN_FLIGHT = 2;
         const std::vector<const char*> deviceExtensions = {
                 VK_KHR_SWAPCHAIN_EXTENSION_NAME
         };
@@ -77,8 +91,6 @@ namespace Hellion
         void setupDebug();
 
         void createInstance();
-
-        bool isSuitable(const vk::PhysicalDevice& device);
 
         bool checkDeviceExtensionSupport(const vk::PhysicalDevice& device);
 
@@ -113,12 +125,51 @@ namespace Hellion
 
         void init(GLFWwindow* window);
 
+        void drawFrame();
+
+        void wait()
+        {
+            device.waitIdle();
+        }
+
         static VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity, VkDebugUtilsMessageTypeFlagsEXT messageType,
                                                             const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData, void* pUserData)
         {
             fmt::println("validation layer: {}", pCallbackData->pMessage);
             return VK_FALSE;
         }
+
+        static std::vector<char> readFile(const std::string& filename)
+        {
+            std::ifstream file(filename, std::ios::ate | std::ios::binary);
+
+            if(!file.is_open())
+            {
+                throw std::runtime_error("failed to open file!");
+            }
+
+            size_t fileSize = (size_t) file.tellg();
+            std::vector<char> buffer(fileSize);
+
+            file.seekg(0);
+            file.read(buffer.data(), fileSize);
+
+            file.close();
+
+            return buffer;
+        }
+
+        vk::UniqueShaderModule createShaderModule(const std::vector<char>& code);
+
+        void createRenderPass();
+
+        void createFramebuffers();
+
+        void createCommandPool();
+
+        void createCommandBuffers();
+
+        void createSyncObjects();
     };
 }
 #endif //HELLION_VULKANHELPER_H

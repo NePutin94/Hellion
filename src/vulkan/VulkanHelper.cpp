@@ -71,7 +71,6 @@ void Hellion::VulkanHelper::setupDebug()
 
 bool Hellion::VulkanHelper::supported(std::vector<const char*>& extensions, const std::vector<const char*>& layers, bool debug)
 {
-    //check extension support
     std::vector<vk::ExtensionProperties> supportedExtensions = vk::enumerateInstanceExtensionProperties();
 
     if(debug)
@@ -156,18 +155,33 @@ void Hellion::VulkanHelper::init(GLFWwindow* window)
     createLogicalDevice();
     createSwapChain(window);
     createImageViews();
+    createRenderPass();
     createGraphicsPipeline();
+    createFramebuffers();
+    createCommandPool();
+    createCommandBuffers();
+    createSyncObjects();
 }
 
 void Hellion::VulkanHelper::cleanup()
 {
-    instance.destroyDebugUtilsMessengerEXT(debugMessenger, nullptr, dldi);
-    for(const auto& imageView: swapChainImageViews)
-    {
-        device.destroyImageView(imageView);
+    for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
+        device.destroySemaphore(renderFinishedSemaphores[i]);
+        device.destroySemaphore(imageAvailableSemaphores[i]);
+        device.destroyFence(inFlightFences[i]);
     }
+    device.destroyCommandPool(commandPool);
+    for (auto framebuffer : swapChainFramebuffers) {
+        device.destroyFramebuffer(framebuffer);
+    }
+    device.destroyPipeline(graphicsPipeline);
+    device.destroyPipelineLayout(pipelineLayout);
+    device.destroyRenderPass(renderPass);
+    for(const auto& imageView: swapChainImageViews)
+        device.destroyImageView(imageView);
     device.destroySwapchainKHR(swapChain);
     device.destroy();
+    instance.destroyDebugUtilsMessengerEXT(debugMessenger, nullptr, dldi);
     instance.destroySurfaceKHR(surface);
     instance.destroy();
 }
@@ -293,10 +307,7 @@ void Hellion::VulkanHelper::createSwapChain(GLFWwindow* window)
 
     uint32_t imageCount = swapChainSupport.capabilities.minImageCount + 1;
     if(swapChainSupport.capabilities.maxImageCount > 0 && imageCount > swapChainSupport.capabilities.maxImageCount)
-    {
         imageCount = swapChainSupport.capabilities.maxImageCount;
-    }
-
     vk::SwapchainCreateInfoKHR createInfo(
             vk::SwapchainCreateFlagsKHR(),
             surface,
@@ -439,5 +450,316 @@ void Hellion::VulkanHelper::createImageViews()
 
 void Hellion::VulkanHelper::createGraphicsPipeline()
 {
+    auto vertShaderCode = readFile("../Data/Shaders/vert.spv");
+    auto fragShaderCode = readFile("../Data/Shaders/frag.spv");
 
+    auto vertShaderModule = createShaderModule(vertShaderCode);
+    auto fragShaderModule = createShaderModule(fragShaderCode);
+
+    vk::PipelineShaderStageCreateInfo shaderStages[] = {
+            {
+                    vk::PipelineShaderStageCreateFlags(),
+                    vk::ShaderStageFlagBits::eVertex,
+                    *vertShaderModule,
+                    "main"
+            },
+            {
+                    vk::PipelineShaderStageCreateFlags(),
+                    vk::ShaderStageFlagBits::eFragment,
+                    *fragShaderModule,
+                    "main"
+            }
+    };
+
+    vk::PipelineVertexInputStateCreateInfo vertexInputInfo = {};
+    vertexInputInfo.vertexBindingDescriptionCount = 0;
+    vertexInputInfo.vertexAttributeDescriptionCount = 0;
+
+    vk::PipelineInputAssemblyStateCreateInfo inputAssembly = {};
+    inputAssembly.topology = vk::PrimitiveTopology::eTriangleList;
+    inputAssembly.primitiveRestartEnable = VK_FALSE;
+
+    vk::Viewport viewport = {};
+    viewport.x = 0.0f;
+    viewport.y = 0.0f;
+    viewport.width = (float) swapChainExtent.width;
+    viewport.height = (float) swapChainExtent.height;
+    viewport.minDepth = 0.0f;
+    viewport.maxDepth = 1.0f;
+
+    vk::Rect2D scissor = {};
+    scissor.offset = vk::Offset2D{0, 0};
+    scissor.extent = swapChainExtent;
+
+    vk::PipelineViewportStateCreateInfo viewportState = {};
+    viewportState.viewportCount = 1;
+    viewportState.pViewports = &viewport;
+    viewportState.scissorCount = 1;
+    viewportState.pScissors = &scissor;
+
+    vk::PipelineRasterizationStateCreateInfo rasterizer = {};
+    rasterizer.depthClampEnable = VK_FALSE;
+    rasterizer.rasterizerDiscardEnable = VK_FALSE;
+    rasterizer.polygonMode = vk::PolygonMode::eFill;
+    rasterizer.lineWidth = 1.0f;
+    rasterizer.cullMode = vk::CullModeFlagBits::eBack;
+    rasterizer.frontFace = vk::FrontFace::eClockwise;
+    rasterizer.depthBiasEnable = VK_FALSE;
+
+    vk::PipelineMultisampleStateCreateInfo multisampling = {};
+    multisampling.sampleShadingEnable = VK_FALSE;
+    multisampling.rasterizationSamples = vk::SampleCountFlagBits::e1;
+
+    vk::PipelineColorBlendAttachmentState colorBlendAttachment = {};
+    colorBlendAttachment.colorWriteMask =
+            vk::ColorComponentFlagBits::eR | vk::ColorComponentFlagBits::eG | vk::ColorComponentFlagBits::eB | vk::ColorComponentFlagBits::eA;
+    colorBlendAttachment.blendEnable = VK_FALSE;
+
+    vk::PipelineColorBlendStateCreateInfo colorBlending = {};
+    colorBlending.logicOpEnable = VK_FALSE;
+    colorBlending.logicOp = vk::LogicOp::eCopy;
+    colorBlending.attachmentCount = 1;
+    colorBlending.pAttachments = &colorBlendAttachment;
+    colorBlending.blendConstants[0] = 0.0f;
+    colorBlending.blendConstants[1] = 0.0f;
+    colorBlending.blendConstants[2] = 0.0f;
+    colorBlending.blendConstants[3] = 0.0f;
+
+    vk::PipelineLayoutCreateInfo pipelineLayoutInfo = {};
+    pipelineLayoutInfo.setLayoutCount = 0;
+    pipelineLayoutInfo.pushConstantRangeCount = 0;
+
+    try
+    {
+        pipelineLayout = device.createPipelineLayout(pipelineLayoutInfo);
+    } catch (vk::SystemError err)
+    {
+        throw std::runtime_error("failed to create pipeline layout!");
+    }
+
+    vk::GraphicsPipelineCreateInfo pipelineInfo = {};
+    pipelineInfo.stageCount = 2;
+    pipelineInfo.pStages = shaderStages;
+    pipelineInfo.pVertexInputState = &vertexInputInfo;
+    pipelineInfo.pInputAssemblyState = &inputAssembly;
+    pipelineInfo.pViewportState = &viewportState;
+    pipelineInfo.pRasterizationState = &rasterizer;
+    pipelineInfo.pMultisampleState = &multisampling;
+    pipelineInfo.pColorBlendState = &colorBlending;
+    pipelineInfo.layout = pipelineLayout;
+    pipelineInfo.renderPass = renderPass;
+    pipelineInfo.subpass = 0;
+    pipelineInfo.basePipelineHandle = nullptr;
+
+    try
+    {
+        graphicsPipeline = device.createGraphicsPipeline(nullptr, pipelineInfo).value;
+    }
+    catch (vk::SystemError err)
+    {
+        throw std::runtime_error("failed to create graphics pipeline!");
+    }
+}
+
+vk::UniqueShaderModule Hellion::VulkanHelper::createShaderModule(const std::vector<char>& code)
+{
+    try
+    {
+        return device.createShaderModuleUnique({vk::ShaderModuleCreateFlags(), code.size(), reinterpret_cast<const uint32_t*>(code.data())});
+    } catch (vk::SystemError err)
+    {
+        throw std::runtime_error("failed to create shader module!");
+    }
+}
+
+void Hellion::VulkanHelper::createRenderPass()
+{
+    vk::AttachmentDescription colorAttachment = {};
+    colorAttachment.format = swapChainImageFormat;
+    colorAttachment.samples = vk::SampleCountFlagBits::e1;
+    colorAttachment.loadOp = vk::AttachmentLoadOp::eClear;
+    colorAttachment.storeOp = vk::AttachmentStoreOp::eStore;
+    colorAttachment.stencilLoadOp = vk::AttachmentLoadOp::eDontCare;
+    colorAttachment.stencilStoreOp = vk::AttachmentStoreOp::eDontCare;
+    colorAttachment.initialLayout = vk::ImageLayout::eUndefined;
+    colorAttachment.finalLayout = vk::ImageLayout::ePresentSrcKHR;
+
+    vk::AttachmentReference colorAttachmentRef = {};
+    colorAttachmentRef.attachment = 0;
+    colorAttachmentRef.layout = vk::ImageLayout::eColorAttachmentOptimal;
+
+    vk::SubpassDescription subpass = {};
+    subpass.pipelineBindPoint = vk::PipelineBindPoint::eGraphics;
+    subpass.colorAttachmentCount = 1;
+    subpass.pColorAttachments = &colorAttachmentRef;
+
+    vk::RenderPassCreateInfo renderPassInfo = {};
+    renderPassInfo.attachmentCount = 1;
+    renderPassInfo.pAttachments = &colorAttachment;
+    renderPassInfo.subpassCount = 1;
+    renderPassInfo.pSubpasses = &subpass;
+
+    try
+    {
+        renderPass = device.createRenderPass(renderPassInfo);
+    } catch (vk::SystemError err)
+    {
+        throw std::runtime_error("failed to create render pass!");
+    }
+}
+
+void Hellion::VulkanHelper::createFramebuffers()
+{
+    swapChainFramebuffers.resize(swapChainImageViews.size());
+
+    for(size_t i = 0; i < swapChainImageViews.size(); i++)
+    {
+        vk::ImageView attachments[] = {
+                swapChainImageViews[i]
+        };
+
+        vk::FramebufferCreateInfo framebufferInfo = {};
+        framebufferInfo.renderPass = renderPass;
+        framebufferInfo.attachmentCount = 1;
+        framebufferInfo.pAttachments = attachments;
+        framebufferInfo.width = swapChainExtent.width;
+        framebufferInfo.height = swapChainExtent.height;
+        framebufferInfo.layers = 1;
+
+        try
+        {
+            swapChainFramebuffers[i] = device.createFramebuffer(framebufferInfo);
+        } catch (vk::SystemError err)
+        {
+            throw std::runtime_error("failed to create framebuffer!");
+        }
+    }
+}
+
+void Hellion::VulkanHelper::createCommandPool()
+{
+    QueueFamilyIndices queueFamilyIndices = findQueueFamilies(physicalDevice);
+
+    vk::CommandPoolCreateInfo poolInfo = {};
+    poolInfo.queueFamilyIndex = queueFamilyIndices.graphicsFamily.value();
+
+    try {
+        commandPool = device.createCommandPool(poolInfo);
+    }
+    catch (vk::SystemError err) {
+        throw std::runtime_error("failed to create command pool!");
+    }
+}
+
+void Hellion::VulkanHelper::createCommandBuffers()
+{
+    commandBuffers.resize(swapChainFramebuffers.size());
+
+    vk::CommandBufferAllocateInfo allocInfo = {};
+    allocInfo.commandPool = commandPool;
+    allocInfo.level = vk::CommandBufferLevel::ePrimary;
+    allocInfo.commandBufferCount = (uint32_t)commandBuffers.size();
+
+    try {
+        commandBuffers = device.allocateCommandBuffers(allocInfo);
+    } catch (vk::SystemError err) {
+        throw std::runtime_error("failed to allocate command buffers!");
+    }
+
+    for (size_t i = 0; i < commandBuffers.size(); i++) {
+        vk::CommandBufferBeginInfo beginInfo = {};
+        beginInfo.flags = vk::CommandBufferUsageFlagBits::eSimultaneousUse;
+
+        try {
+            commandBuffers[i].begin(beginInfo);
+        }
+        catch (vk::SystemError err) {
+            throw std::runtime_error("failed to begin recording command buffer!");
+        }
+
+        vk::RenderPassBeginInfo renderPassInfo = {};
+        renderPassInfo.renderPass = renderPass;
+        renderPassInfo.framebuffer = swapChainFramebuffers[i];
+        renderPassInfo.renderArea.offset = vk::Offset2D{ 0, 0 };
+        renderPassInfo.renderArea.extent = swapChainExtent;
+
+        vk::ClearValue clearColor = { std::array<float, 4>{ 0.0f, 0.0f, 0.0f, 1.0f } };
+        renderPassInfo.clearValueCount = 1;
+        renderPassInfo.pClearValues = &clearColor;
+
+        commandBuffers[i].beginRenderPass(renderPassInfo, vk::SubpassContents::eInline);
+
+        commandBuffers[i].bindPipeline(vk::PipelineBindPoint::eGraphics, graphicsPipeline);
+
+        commandBuffers[i].draw(3, 1, 0, 0);
+
+        commandBuffers[i].endRenderPass();
+
+        try {
+            commandBuffers[i].end();
+        } catch (vk::SystemError err) {
+            throw std::runtime_error("failed to record command buffer!");
+        }
+    }
+}
+
+void Hellion::VulkanHelper::createSyncObjects()
+{
+    imageAvailableSemaphores.resize(MAX_FRAMES_IN_FLIGHT);
+    renderFinishedSemaphores.resize(MAX_FRAMES_IN_FLIGHT);
+    inFlightFences.resize(MAX_FRAMES_IN_FLIGHT);
+
+    try {
+        for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
+            imageAvailableSemaphores[i] = device.createSemaphore({});
+            renderFinishedSemaphores[i] = device.createSemaphore({});
+            inFlightFences[i] = device.createFence({vk::FenceCreateFlagBits::eSignaled});
+        }
+    } catch (vk::SystemError err) {
+        throw std::runtime_error("failed to create synchronization objects for a frame!");
+    }
+}
+
+void Hellion::VulkanHelper::drawFrame()
+{
+    device.waitForFences(1, &inFlightFences[currentFrame], VK_TRUE, std::numeric_limits<uint64_t>::max());
+    device.resetFences(1, &inFlightFences[currentFrame]);
+
+    uint32_t imageIndex = device.acquireNextImageKHR(swapChain, std::numeric_limits<uint64_t>::max(),
+                                                      imageAvailableSemaphores[currentFrame], nullptr).value;
+
+    vk::SubmitInfo submitInfo = {};
+
+    vk::Semaphore waitSemaphores[] = { imageAvailableSemaphores[currentFrame] };
+    vk::PipelineStageFlags waitStages[] = { vk::PipelineStageFlagBits::eColorAttachmentOutput };
+    submitInfo.waitSemaphoreCount = 1;
+    submitInfo.pWaitSemaphores = waitSemaphores;
+    submitInfo.pWaitDstStageMask = waitStages;
+
+    submitInfo.commandBufferCount = 1;
+    submitInfo.pCommandBuffers = &commandBuffers[imageIndex];
+
+    vk::Semaphore signalSemaphores[] = { renderFinishedSemaphores[currentFrame] };
+    submitInfo.signalSemaphoreCount = 1;
+    submitInfo.pSignalSemaphores = signalSemaphores;
+
+    try {
+        graphicsQueue.submit(submitInfo, inFlightFences[currentFrame]);
+    } catch (vk::SystemError err) {
+        throw std::runtime_error("failed to submit draw command buffer!");
+    }
+
+    vk::PresentInfoKHR presentInfo = {};
+    presentInfo.waitSemaphoreCount = 1;
+    presentInfo.pWaitSemaphores = signalSemaphores;
+
+    vk::SwapchainKHR swapChains[] = { swapChain };
+    presentInfo.swapchainCount = 1;
+    presentInfo.pSwapchains = swapChains;
+    presentInfo.pImageIndices = &imageIndex;
+    presentInfo.pResults = nullptr; // Optional
+
+    presentQueue.presentKHR(presentInfo);
+
+    currentFrame = (currentFrame + 1) % MAX_FRAMES_IN_FLIGHT;
 }
