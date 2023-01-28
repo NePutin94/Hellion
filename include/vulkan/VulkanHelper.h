@@ -7,10 +7,18 @@
 
 #define VK_USE_PLATFORM_WIN32_KHR
 #define GLFW_INCLUDE_VULKAN
-#include <GLFW/glfw3.h>
-#define GLFW_EXPOSE_NATIVE_WIN32
-#include <GLFW/glfw3native.h>
 
+#include <GLFW/glfw3.h>
+
+#ifdef _WIN64
+#define GLFW_EXPOSE_NATIVE_WIN32
+#endif
+#ifdef __linux__
+#define GLFW_EXPOSE_NATIVE_X11
+#endif
+
+#include <GLFW/glfw3native.h>
+#include <vulkan/vulkan.hpp>
 #include <optional>
 #include <fmt/core.h>
 #include <vector>
@@ -31,45 +39,40 @@ namespace Hellion
             }
         };
 
+        vk::UniqueInstance instance;
+        VkDebugUtilsMessengerEXT callback;
+        vk::SurfaceKHR surface;
+
+        vk::PhysicalDevice physicalDevice;
+        vk::UniqueDevice device;
+
+        vk::Queue graphicsQueue;
+        vk::Queue presentQueue;
+
+
         const std::vector<const char*> validationLayers = {
                 "VK_LAYER_KHRONOS_validation"
         };
-        VkInstance instance;
-        VkDebugUtilsMessengerEXT debugMessenger;
-        VkSurfaceKHR surface;
 
-        VkPhysicalDevice physicalDevice = VK_NULL_HANDLE;
-        VkDevice device;
-
-        VkQueue graphicsQueue;
-        VkQueue presentQueue;
 #ifdef NDEBUG
         const bool enableValidationLayers = false;
 #else
         const bool enableValidationLayers = true;
 #endif
     private:
-        void DestroyDebugUtilsMessengerEXT(VkInstance instance, VkDebugUtilsMessengerEXT debugMessenger, const VkAllocationCallbacks* pAllocator);
-
-        void pickPhysicalDevice();
-
-        void createLogicalDevice();
-
-        bool isDeviceSuitable(VkPhysicalDevice device);
-
-        QueueFamilyIndices findQueueFamilies(VkPhysicalDevice device);
 
         std::vector<const char*> getRequiredExtensions();
 
-        bool checkValidationLayerSupport();
+        bool supported(std::vector<const char*>& extensions, const std::vector<const char*>& layers, bool debug);
 
-        void setupDebugMessenger();
-
-        void populateDebugMessengerCreateInfo(VkDebugUtilsMessengerCreateInfoEXT& createInfo);
+        void setupDebug();
 
         void createInstance();
 
-        void createSurface(GLFWwindow* window);
+        bool isSuitable(const vk::PhysicalDevice& device);
+
+        bool checkDeviceExtensionSupport(const vk::PhysicalDevice& device, const std::vector<const char*>& requestedExtensions);
+
     public:
         VulkanHelper() = default;
 
@@ -84,21 +87,40 @@ namespace Hellion
             return VK_FALSE;
         }
 
-        static VkResult
+        VkResult
         CreateDebugUtilsMessengerEXT(VkInstance instance, const VkDebugUtilsMessengerCreateInfoEXT* pCreateInfo, const VkAllocationCallbacks* pAllocator,
-                                     VkDebugUtilsMessengerEXT* pDebugMessenger)
+                                     VkDebugUtilsMessengerEXT* pCallback)
         {
             auto func = (PFN_vkCreateDebugUtilsMessengerEXT) vkGetInstanceProcAddr(instance, "vkCreateDebugUtilsMessengerEXT");
             if(func != nullptr)
             {
-                return func(instance, pCreateInfo, pAllocator, pDebugMessenger);
+                return func(instance, pCreateInfo, pAllocator, pCallback);
             } else
             {
                 return VK_ERROR_EXTENSION_NOT_PRESENT;
             }
         }
 
+        void DestroyDebugUtilsMessengerEXT(VkInstance instance, VkDebugUtilsMessengerEXT callback, const VkAllocationCallbacks* pAllocator)
+        {
+            auto func = (PFN_vkDestroyDebugUtilsMessengerEXT) vkGetInstanceProcAddr(instance, "vkDestroyDebugUtilsMessengerEXT");
+            if(func != nullptr)
+            {
+                func(instance, callback, pAllocator);
+            }
+        }
 
+        void pickPhysicalDevice();
+
+        bool isDeviceSuitable(const vk::PhysicalDevice& device);
+
+        QueueFamilyIndices findQueueFamilies(const vk::PhysicalDevice& device);
+
+        void createLogicalDevice();
+
+        void createSurface(GLFWwindow* window);
+
+        bool checkValidationLayerSupport();
     };
 }
 #endif //HELLION_VULKANHELPER_H

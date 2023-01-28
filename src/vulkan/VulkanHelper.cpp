@@ -6,86 +6,38 @@
 
 void Hellion::VulkanHelper::createInstance()
 {
-    if(enableValidationLayers && !checkValidationLayerSupport())
-        fmt::println("validation layers requested, but not available!");
+    if (enableValidationLayers && !checkValidationLayerSupport()) {
+        throw std::runtime_error("validation layers requested, but not available!");
+    }
 
-    VkApplicationInfo appInfo{};
-    appInfo.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
-    appInfo.pApplicationName = "Hello Triangle";
-    appInfo.applicationVersion = VK_MAKE_VERSION(1, 0, 0);
-    appInfo.pEngineName = "No Engine";
-    appInfo.engineVersion = VK_MAKE_VERSION(1, 0, 0);
-    appInfo.apiVersion = VK_API_VERSION_1_3;
-
-    VkInstanceCreateInfo createInfo{};
-    createInfo.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
-    createInfo.pApplicationInfo = &appInfo;
+    auto appInfo = vk::ApplicationInfo(
+            "Hello Triangle",
+            VK_MAKE_VERSION(1, 0, 0),
+            "No Engine",
+            VK_MAKE_VERSION(1, 0, 0),
+            VK_API_VERSION_1_0
+    );
 
     auto extensions = getRequiredExtensions();
-    createInfo.enabledExtensionCount = static_cast<uint32_t>(extensions.size());
-    createInfo.ppEnabledExtensionNames = extensions.data();
 
-    VkDebugUtilsMessengerCreateInfoEXT debugCreateInfo{};
-    if(enableValidationLayers)
-    {
+    auto createInfo = vk::InstanceCreateInfo(
+            vk::InstanceCreateFlags(),
+            &appInfo,
+            0, nullptr, // enabled layers
+            static_cast<uint32_t>(extensions.size()), extensions.data() // enabled extensions
+    );
+
+    if (enableValidationLayers) {
         createInfo.enabledLayerCount = static_cast<uint32_t>(validationLayers.size());
         createInfo.ppEnabledLayerNames = validationLayers.data();
-        populateDebugMessengerCreateInfo(debugCreateInfo);
-        createInfo.pNext = (VkDebugUtilsMessengerCreateInfoEXT*) &debugCreateInfo;
-    } else
-    {
-        createInfo.enabledLayerCount = 0;
-        createInfo.pNext = nullptr;
     }
 
-    if(vkCreateInstance(&createInfo, nullptr, &instance) != VK_SUCCESS)
-        fmt::println("failed to create instance!");
-}
-
-void Hellion::VulkanHelper::populateDebugMessengerCreateInfo(VkDebugUtilsMessengerCreateInfoEXT& createInfo)
-{
-    createInfo = {};
-    createInfo.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT;
-    createInfo.messageSeverity =
-            VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT;
-    createInfo.messageType =
-            VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT;
-    createInfo.pfnUserCallback = debugCallback;
-}
-
-void Hellion::VulkanHelper::setupDebugMessenger()
-{
-    if(!enableValidationLayers) return;
-
-    VkDebugUtilsMessengerCreateInfoEXT createInfo;
-    populateDebugMessengerCreateInfo(createInfo);
-
-    if(CreateDebugUtilsMessengerEXT(instance, &createInfo, nullptr, &debugMessenger) != VK_SUCCESS)
-        fmt::println("failed to set up debug messenger!");
-}
-
-bool Hellion::VulkanHelper::checkValidationLayerSupport()
-{
-    uint32_t layerCount;
-    vkEnumerateInstanceLayerProperties(&layerCount, nullptr);
-
-    std::vector<VkLayerProperties> availableLayers(layerCount);
-    vkEnumerateInstanceLayerProperties(&layerCount, availableLayers.data());
-
-    for(const auto& layerName: validationLayers)
-    {
-        bool layerFound = false;
-        for(const auto& layerProperties: availableLayers)
-            if(strcmp(layerName, layerProperties.layerName) == 0)
-            {
-                layerFound = true;
-                break;
-            }
-        if(!layerFound)
-            return false;
+    try {
+        instance = vk::createInstanceUnique(createInfo, nullptr);
     }
-
-    return true;
+    catch (vk::SystemError err) {
+        throw std::runtime_error("failed to create instance!");
+    }
 }
 
 std::vector<const char*> Hellion::VulkanHelper::getRequiredExtensions()
@@ -102,25 +54,164 @@ std::vector<const char*> Hellion::VulkanHelper::getRequiredExtensions()
     return extensions;
 }
 
-Hellion::VulkanHelper::QueueFamilyIndices Hellion::VulkanHelper::findQueueFamilies(VkPhysicalDevice device)
+void Hellion::VulkanHelper::setupDebug()
+{
+    if (!enableValidationLayers) return;
+
+    auto createInfo = vk::DebugUtilsMessengerCreateInfoEXT(
+            vk::DebugUtilsMessengerCreateFlagsEXT(),
+            vk::DebugUtilsMessageSeverityFlagBitsEXT::eVerbose | vk::DebugUtilsMessageSeverityFlagBitsEXT::eWarning | vk::DebugUtilsMessageSeverityFlagBitsEXT::eError,
+            vk::DebugUtilsMessageTypeFlagBitsEXT::eGeneral | vk::DebugUtilsMessageTypeFlagBitsEXT::eValidation | vk::DebugUtilsMessageTypeFlagBitsEXT::ePerformance,
+            debugCallback,
+            nullptr
+    );
+
+    // NOTE: Vulkan-hpp has methods for this, but they trigger linking errors...
+    //instance->createDebugUtilsMessengerEXT(createInfo);
+    //instance->createDebugUtilsMessengerEXTUnique(createInfo);
+
+    // NOTE: reinterpret_cast is also used by vulkan.hpp internally for all these structs
+    if (CreateDebugUtilsMessengerEXT(*instance, reinterpret_cast<const VkDebugUtilsMessengerCreateInfoEXT*>(&createInfo), nullptr, &callback) != VK_SUCCESS) {
+        throw std::runtime_error("failed to set up debug callback!");
+    }
+}
+
+bool Hellion::VulkanHelper::supported(std::vector<const char*>& extensions, const std::vector<const char*>& layers, bool debug)
+{
+    //check extension support
+    std::vector<vk::ExtensionProperties> supportedExtensions = vk::enumerateInstanceExtensionProperties();
+
+    if(debug)
+    {
+        fmt::println("Device can support the following extensions:");
+        for(vk::ExtensionProperties supportedExtension: supportedExtensions)
+        {
+            fmt::println("{}", supportedExtension.extensionName);
+        }
+    }
+
+    bool found;
+    for(const char* extension: extensions)
+    {
+        found = false;
+        for(vk::ExtensionProperties supportedExtension: supportedExtensions)
+        {
+            if(strcmp(extension, supportedExtension.extensionName) == 0)
+            {
+                found = true;
+                if(debug)
+                {
+                    fmt::println("Extension {} is supported!", extension);
+                }
+            }
+        }
+        if(!found)
+        {
+            if(debug)
+            {
+                fmt::println("Extension {} is not supported!", extension);
+            }
+            return false;
+        }
+    }
+
+    //check layer support
+    std::vector<vk::LayerProperties> supportedLayers = vk::enumerateInstanceLayerProperties();
+
+    if(debug)
+    {
+        fmt::println("Device can support the following layers");
+        for(vk::LayerProperties supportedLayer: supportedLayers)
+        {
+            fmt::println("{}", supportedLayer.layerName);
+        }
+    }
+
+    for(const char* layer: layers)
+    {
+        found = false;
+        for(vk::LayerProperties supportedLayer: supportedLayers)
+        {
+            if(strcmp(layer, supportedLayer.layerName) == 0)
+            {
+                found = true;
+                if(debug)
+                {
+                    fmt::println("Layer {} is supported!", layer);
+                }
+            }
+        }
+        if(!found)
+        {
+            if(debug)
+            {
+                fmt::println("Layer {} is not supported!", layer);
+            }
+            return false;
+        }
+    }
+
+    return true;
+}
+
+void Hellion::VulkanHelper::init(GLFWwindow* window)
+{
+    createInstance();
+    setupDebug();
+    createSurface(window);
+    pickPhysicalDevice();
+    createLogicalDevice();
+}
+
+void Hellion::VulkanHelper::cleanup()
+{
+}
+
+void Hellion::VulkanHelper::pickPhysicalDevice()
+{
+    auto devices = instance->enumeratePhysicalDevices();
+    if (devices.size() == 0) {
+        throw std::runtime_error("failed to find GPUs with Vulkan support!");
+    }
+
+    for (const auto& device : devices) {
+        if (isDeviceSuitable(device)) {
+            physicalDevice = device;
+            break;
+        }
+    }
+
+    if (!physicalDevice) {
+        throw std::runtime_error("failed to find a suitable GPU!");
+    }
+}
+
+bool Hellion::VulkanHelper::isDeviceSuitable(const vk::PhysicalDevice& device)
+{
+    QueueFamilyIndices indices = findQueueFamilies(device);
+
+    return indices.isComplete();
+}
+
+Hellion::VulkanHelper::QueueFamilyIndices Hellion::VulkanHelper::findQueueFamilies(const vk::PhysicalDevice& device)
 {
     QueueFamilyIndices indices;
 
-    uint32_t queueFamilyCount = 0;
-    vkGetPhysicalDeviceQueueFamilyProperties(device, &queueFamilyCount, nullptr);
-
-    std::vector<VkQueueFamilyProperties> queueFamilies(queueFamilyCount);
-    vkGetPhysicalDeviceQueueFamilyProperties(device, &queueFamilyCount, queueFamilies.data());
+    auto queueFamilies = device.getQueueFamilyProperties();
 
     int i = 0;
     for(const auto& queueFamily: queueFamilies)
     {
-        if(queueFamily.queueFlags & VK_QUEUE_GRAPHICS_BIT)
+        if(queueFamily.queueCount > 0 && queueFamily.queueFlags & vk::QueueFlagBits::eGraphics)
+        {
             indices.graphicsFamily = i;
-        VkBool32 presentSupport = false;
-        vkGetPhysicalDeviceSurfaceSupportKHR(device, i, surface, &presentSupport);
-        if(presentSupport)
+        }
+
+        if(queueFamily.queueCount > 0 && device.getSurfaceSupportKHR(i, surface))
+        {
             indices.presentFamily = i;
+        }
+
         if(indices.isComplete())
             break;
         i++;
@@ -129,106 +220,74 @@ Hellion::VulkanHelper::QueueFamilyIndices Hellion::VulkanHelper::findQueueFamili
     return indices;
 }
 
-bool Hellion::VulkanHelper::isDeviceSuitable(VkPhysicalDevice device)
-{
-    QueueFamilyIndices indices = findQueueFamilies(device);
-
-    return indices.isComplete();
-}
-
 void Hellion::VulkanHelper::createLogicalDevice()
 {
     QueueFamilyIndices indices = findQueueFamilies(physicalDevice);
-    std::vector<VkDeviceQueueCreateInfo> queueCreateInfos;
-    std::set<uint32_t> uniqueQueueFamilies = {indices.graphicsFamily.value(), indices.presentFamily.value()};
+
+    std::vector<vk::DeviceQueueCreateInfo> queueCreateInfos;
+    std::set<uint32_t> uniqueQueueFamilies = { indices.graphicsFamily.value(), indices.presentFamily.value() };
 
     float queuePriority = 1.0f;
-    for(uint32_t queueFamily: uniqueQueueFamilies)
-    {
-        VkDeviceQueueCreateInfo queueCreateInfo{};
-        queueCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
-        queueCreateInfo.queueFamilyIndex = queueFamily;
-        queueCreateInfo.queueCount = 1;
-        queueCreateInfo.pQueuePriorities = &queuePriority;
-        queueCreateInfos.push_back(queueCreateInfo);
+
+    for (uint32_t queueFamily : uniqueQueueFamilies) {
+        queueCreateInfos.push_back({
+                                           vk::DeviceQueueCreateFlags(),
+                                           queueFamily,
+                                           1, // queueCount
+                                           &queuePriority
+                                   });
     }
 
-    VkPhysicalDeviceFeatures deviceFeatures{};
-
-    VkDeviceCreateInfo createInfo{};
-    createInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
-    createInfo.queueCreateInfoCount = static_cast<uint32_t>(queueCreateInfos.size());
-    createInfo.pQueueCreateInfos = queueCreateInfos.data();
+    auto deviceFeatures = vk::PhysicalDeviceFeatures();
+    auto createInfo = vk::DeviceCreateInfo(
+            vk::DeviceCreateFlags(),
+            static_cast<uint32_t>(queueCreateInfos.size()),
+            queueCreateInfos.data()
+    );
     createInfo.pEnabledFeatures = &deviceFeatures;
     createInfo.enabledExtensionCount = 0;
 
-    if(enableValidationLayers)
-    {
+    if (enableValidationLayers) {
         createInfo.enabledLayerCount = static_cast<uint32_t>(validationLayers.size());
         createInfo.ppEnabledLayerNames = validationLayers.data();
-    } else
-    {
-        createInfo.enabledLayerCount = 0;
     }
 
-    if(vkCreateDevice(physicalDevice, &createInfo, nullptr, &device) != VK_SUCCESS)
-        fmt::println("failed to create logical device!");
-
-    vkGetDeviceQueue(device, indices.graphicsFamily.value(), 0, &graphicsQueue);
-    vkGetDeviceQueue(device, indices.presentFamily.value(), 0, &presentQueue);
-}
-
-void Hellion::VulkanHelper::pickPhysicalDevice()
-{
-    uint32_t deviceCount = 0;
-    vkEnumeratePhysicalDevices(instance, &deviceCount, nullptr);
-
-    if(deviceCount == 0)
-        fmt::println("failed to find GPUs with Vulkan support!");
-
-    std::vector<VkPhysicalDevice> devices(deviceCount);
-    vkEnumeratePhysicalDevices(instance, &deviceCount, devices.data());
-
-    for(const auto& device: devices)
-    {
-        if(isDeviceSuitable(device))
-        {
-            physicalDevice = device;
-            break;
-        }
+    try {
+        device = physicalDevice.createDeviceUnique(createInfo);
+    } catch (vk::SystemError err) {
+        throw std::runtime_error("failed to create logical device!");
     }
 
-    if(physicalDevice == VK_NULL_HANDLE)
-        fmt::println("failed to find a suitable GPU!");
-}
-
-void Hellion::VulkanHelper::DestroyDebugUtilsMessengerEXT(VkInstance instance, VkDebugUtilsMessengerEXT debugMessenger, const VkAllocationCallbacks* pAllocator)
-{
-    auto func = (PFN_vkDestroyDebugUtilsMessengerEXT) vkGetInstanceProcAddr(instance, "vkDestroyDebugUtilsMessengerEXT");
-    if(func != nullptr)
-        func(instance, debugMessenger, pAllocator);
-}
-
-void Hellion::VulkanHelper::cleanup()
-{
-    vkDestroyDevice(device, nullptr);
-    if(enableValidationLayers)
-        DestroyDebugUtilsMessengerEXT(instance, debugMessenger, nullptr);
-    vkDestroySurfaceKHR(instance, surface, nullptr);
-    vkDestroyInstance(instance, nullptr);
-}
-
-void Hellion::VulkanHelper::init(GLFWwindow* window)
-{
-    createInstance();
-    setupDebugMessenger();
-    createSurface(window);
-    pickPhysicalDevice();
-    createLogicalDevice();
+    graphicsQueue = device->getQueue(indices.graphicsFamily.value(), 0);
+    presentQueue = device->getQueue(indices.presentFamily.value(), 0);
 }
 
 void Hellion::VulkanHelper::createSurface(GLFWwindow* window)
 {
-    if(glfwCreateWindowSurface(instance, window, nullptr, &surface) != VK_SUCCESS)
-        fmt::println("failed to create window surface!");
+    VkSurfaceKHR rawSurface;
+    if (glfwCreateWindowSurface(*instance, window, nullptr, &rawSurface) != VK_SUCCESS) {
+        throw std::runtime_error("failed to create window surface!");
+    }
+    surface = rawSurface;
+}
+
+bool Hellion::VulkanHelper::checkValidationLayerSupport()
+{
+    auto availableLayers = vk::enumerateInstanceLayerProperties();
+    for (const char* layerName : validationLayers) {
+        bool layerFound = false;
+
+        for (const auto& layerProperties : availableLayers) {
+            if (strcmp(layerName, layerProperties.layerName) == 0) {
+                layerFound = true;
+                break;
+            }
+        }
+
+        if (!layerFound) {
+            return false;
+        }
+    }
+
+    return true;
 }
