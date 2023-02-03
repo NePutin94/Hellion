@@ -44,6 +44,13 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(range-v3)
 
+FetchContent_Declare(
+        VulkanMemoryAllocator
+        GIT_REPOSITORY https://github.com/GPUOpen-LibrariesAndSDKs/VulkanMemoryAllocator
+        GIT_TAG "v3.0.1"
+)
+FetchContent_MakeAvailable(VulkanMemoryAllocator)
+
 find_package(Vulkan REQUIRED)
 
 file(GLOB CORE_SRC RELATIVE "${CMAKE_SOURCE_DIR}/" "src/*.cpp")
@@ -51,4 +58,4 @@ file(GLOB VULKAN_WRAPPER RELATIVE "${CMAKE_SOURCE_DIR}/" "src/vulkan/*.cpp")
 
 add_executable(Hellion main.cpp ${CORE_SRC} ${VULKAN_WRAPPER})
 message(STATUS ${Vulkan_FOUND})
-target_link_libraries(Hellion PUBLIC nlohmann_json::nlohmann_json glm::glm glfw Vulkan::Vulkan range-v3::range-v3 fmt::fmt)
+target_link_libraries(Hellion PUBLIC nlohmann_json::nlohmann_json glm::glm glfw Vulkan::Vulkan range-v3::range-v3 fmt::fmt VulkanMemoryAllocator)

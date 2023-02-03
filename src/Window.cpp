@@ -7,8 +7,9 @@ void Hellion::Window::initWindow()
 {
     glfwInit();
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
-    glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
     window = glfwCreateWindow(windowSize.x, windowSize.y, "Vulkan", nullptr, nullptr);
+    glfwSetWindowUserPointer(window, &vulkanHelper);
+    glfwSetFramebufferSizeCallback(window, Hellion::VulkanHelper::framebufferResizeCallback);
 }
 
 void Hellion::Window::mainLoop()
@@ -16,7 +17,7 @@ void Hellion::Window::mainLoop()
     while(!glfwWindowShouldClose(window))
     {
         glfwPollEvents();
-        vulkanHelper.drawFrame();
+        vulkanHelper.drawFrame(window);
     }
     vulkanHelper.wait();
 }

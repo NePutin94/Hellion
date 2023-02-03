@@ -15,9 +15,41 @@
 #include <set>
 #include <limits>
 #include <fstream>
+#include <glm/glm.hpp>
+#include <vk_mem_alloc.h>
 
 namespace Hellion
 {
+    struct Vertex {
+        glm::vec2 pos;
+        glm::vec3 color;
+
+        static  vk::VertexInputBindingDescription getBindingDescription() {
+            vk::VertexInputBindingDescription bindingDescription = {};
+            bindingDescription.binding = 0;
+            bindingDescription.stride = sizeof(Vertex);
+            bindingDescription.inputRate = vk::VertexInputRate::eVertex;
+
+            return bindingDescription;
+        }
+
+        static std::array<vk::VertexInputAttributeDescription, 2> getAttributeDescriptions() {
+            std::array<vk::VertexInputAttributeDescription, 2> attributeDescriptions{};
+
+            attributeDescriptions[0].binding = 0;
+            attributeDescriptions[0].location = 0;
+            attributeDescriptions[0].format = vk::Format::eR32G32Sfloat;
+            attributeDescriptions[0].offset = offsetof(Vertex, pos);
+
+            attributeDescriptions[1].binding = 0;
+            attributeDescriptions[1].location = 1;
+            attributeDescriptions[1].format = vk::Format::eR32G32B32Sfloat;
+            attributeDescriptions[1].offset = offsetof(Vertex, color);
+
+            return attributeDescriptions;
+        }
+    };
+
     class VulkanHelper
     {
     private:
@@ -38,6 +70,8 @@ namespace Hellion
             std::vector<vk::SurfaceFormatKHR> formats;
             std::vector<vk::PresentModeKHR> presentModes;
         };
+
+        VmaAllocator g_hAllocator;
 
         vk::PhysicalDevice physicalDevice{nullptr};
         vk::Instance instance{nullptr};
@@ -61,6 +95,12 @@ namespace Hellion
         vk::PipelineLayout pipelineLayout;
         vk::Pipeline graphicsPipeline;
 
+        vk::Buffer vertexBuffer;
+        vk::DeviceMemory vertexBufferMemory;
+
+        vk::Buffer indexBuffer;
+        vk::DeviceMemory indexBufferMemory;
+
         VkCommandPool commandPool;
         std::vector<vk::CommandBuffer, std::allocator<vk::CommandBuffer>> commandBuffers;
 
@@ -76,6 +116,34 @@ namespace Hellion
         const std::vector<const char*> deviceExtensions = {
                 VK_KHR_SWAPCHAIN_EXTENSION_NAME
         };
+
+        //geometry
+        const std::vector<Vertex> vertices = {
+                {{-0.5f, -0.5f}, {1.0f, 0.0f, 0.0f}},
+                {{0.5f, -0.5f}, {0.0f, 1.0f, 0.0f}},
+                {{0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}},
+                {{-0.5f, 0.5f}, {1.0f, 1.0f, 1.0f}}
+        };
+
+        const std::vector<uint16_t> indices = {
+                0, 1, 2, 2, 3, 0
+        };
+
+        static constexpr uint32_t GetVulkanApiVersion()
+        {
+#if VMA_VULKAN_VERSION == 1003000
+            return VK_API_VERSION_1_3;
+#elif VMA_VULKAN_VERSION == 1002000
+            return VK_API_VERSION_1_2;
+#elif VMA_VULKAN_VERSION == 1001000
+    return VK_API_VERSION_1_1;
+#elif VMA_VULKAN_VERSION == 1000000
+    return VK_API_VERSION_1_0;
+#else
+#error Invalid VMA_VULKAN_VERSION.
+    return UINT32_MAX;
+#endif
+        }
 
 #ifdef NDEBUG
         const bool enableValidationLayers = false;
@@ -118,6 +186,7 @@ namespace Hellion
 
         void createGraphicsPipeline();
 
+        bool framebufferResized = false;
     public:
         VulkanHelper() = default;
 
@@ -125,7 +194,7 @@ namespace Hellion
 
         void init(GLFWwindow* window);
 
-        void drawFrame();
+        void drawFrame(GLFWwindow* window);
 
         void wait()
         {
@@ -159,6 +228,12 @@ namespace Hellion
             return buffer;
         }
 
+        static void framebufferResizeCallback(GLFWwindow* window, int width, int height)
+        {
+            auto app = reinterpret_cast<VulkanHelper*>(glfwGetWindowUserPointer(window));
+            app->framebufferResized = true;
+        }
+
         vk::UniqueShaderModule createShaderModule(const std::vector<char>& code);
 
         void createRenderPass();
@@ -170,6 +245,28 @@ namespace Hellion
         void createCommandBuffers();
 
         void createSyncObjects();
+
+        void recreateSwapChain(GLFWwindow* window);
+
+        void cleanupSwapChain();
+
+        void createVertexBuffer();
+
+        uint32_t findMemoryType(uint32_t typeFilter, vk::MemoryPropertyFlags properties);
+
+        void
+        createBuffer(vk::DeviceSize size, vk::BufferUsageFlags usage, vk::MemoryPropertyFlags properties, vk::Buffer& buffer, vk::DeviceMemory& bufferMemory);
+
+        void copyBuffer(vk::Buffer srcBuffer, vk::Buffer dstBuffer, vk::DeviceSize size);
+
+        void createIndexBuffer();
+
+        void createVmaAllocator();
+
+        std::pair<VmaAllocation, VmaAllocationInfo>
+        createBufferVma(vk::DeviceSize size, vk::BufferUsageFlags usage, vk::Buffer& buffer, VmaAllocationCreateFlags flags);
+
+        void createVertexBufferVma();
     };
 }
 #endif //HELLION_VULKANHELPER_H
