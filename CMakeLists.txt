@@ -44,14 +44,13 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(range-v3)
 
+find_package(Vulkan REQUIRED)
+
 FetchContent_Declare(
         VulkanMemoryAllocator
         GIT_REPOSITORY https://github.com/GPUOpen-LibrariesAndSDKs/VulkanMemoryAllocator
-        GIT_TAG "v3.0.1"
 )
 FetchContent_MakeAvailable(VulkanMemoryAllocator)
-
-find_package(Vulkan REQUIRED)
 
 file(GLOB CORE_SRC RELATIVE "${CMAKE_SOURCE_DIR}/" "src/*.cpp")
 file(GLOB VULKAN_WRAPPER RELATIVE "${CMAKE_SOURCE_DIR}/" "src/vulkan/*.cpp")

@@ -20,11 +20,13 @@
 
 namespace Hellion
 {
-    struct Vertex {
+    struct Vertex
+    {
         glm::vec2 pos;
         glm::vec3 color;
 
-        static  vk::VertexInputBindingDescription getBindingDescription() {
+        static vk::VertexInputBindingDescription getBindingDescription()
+        {
             vk::VertexInputBindingDescription bindingDescription = {};
             bindingDescription.binding = 0;
             bindingDescription.stride = sizeof(Vertex);
@@ -33,7 +35,8 @@ namespace Hellion
             return bindingDescription;
         }
 
-        static std::array<vk::VertexInputAttributeDescription, 2> getAttributeDescriptions() {
+        static std::array<vk::VertexInputAttributeDescription, 2> getAttributeDescriptions()
+        {
             std::array<vk::VertexInputAttributeDescription, 2> attributeDescriptions{};
 
             attributeDescriptions[0].binding = 0;
@@ -71,7 +74,23 @@ namespace Hellion
             std::vector<vk::PresentModeKHR> presentModes;
         };
 
+        struct UniformBufferObject
+        {
+            alignas(16) glm::mat4 model;
+            alignas(16) glm::mat4 view;
+            alignas(16) glm::mat4 proj;
+        };
+
+        std::vector<vk::Buffer> uniformBuffers;
+        std::vector<void*> uniformBuffersMapped;
+        vk::DescriptorSetLayout descriptorSetLayout;
+        vk::DescriptorPool descriptorPool;
+        std::vector<vk::DescriptorSet> descriptorSets;
+        std::vector<VmaAllocation> uniformBuffersAllocs;
+
         VmaAllocator g_hAllocator;
+        VmaAllocation vertexAllocation;
+        VmaAllocation indexAllocation;
 
         vk::PhysicalDevice physicalDevice{nullptr};
         vk::Instance instance{nullptr};
@@ -120,9 +139,9 @@ namespace Hellion
         //geometry
         const std::vector<Vertex> vertices = {
                 {{-0.5f, -0.5f}, {1.0f, 0.0f, 0.0f}},
-                {{0.5f, -0.5f}, {0.0f, 1.0f, 0.0f}},
-                {{0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}},
-                {{-0.5f, 0.5f}, {1.0f, 1.0f, 1.0f}}
+                {{0.5f,  -0.5f}, {0.0f, 1.0f, 0.0f}},
+                {{0.5f,  0.5f},  {0.0f, 0.0f, 1.0f}},
+                {{-0.5f, 0.5f},  {1.0f, 1.0f, 1.0f}}
         };
 
         const std::vector<uint16_t> indices = {
@@ -250,8 +269,6 @@ namespace Hellion
 
         void cleanupSwapChain();
 
-        void createVertexBuffer();
-
         uint32_t findMemoryType(uint32_t typeFilter, vk::MemoryPropertyFlags properties);
 
         void
@@ -259,14 +276,26 @@ namespace Hellion
 
         void copyBuffer(vk::Buffer srcBuffer, vk::Buffer dstBuffer, vk::DeviceSize size);
 
-        void createIndexBuffer();
-
         void createVmaAllocator();
 
         std::pair<VmaAllocation, VmaAllocationInfo>
         createBufferVma(vk::DeviceSize size, vk::BufferUsageFlags usage, vk::Buffer& buffer, VmaAllocationCreateFlags flags);
 
         void createVertexBufferVma();
+
+        void createIndexBufferVma();
+
+        void createUniformBuffers();
+
+        void createDescriptorSetLayout();
+
+        void updateUniformBuffer(uint32_t currentImage);
+
+        void createDescriptorPool();
+
+        void createDescriptorSets();
+
+        void recordCommandBuffer(vk::CommandBuffer& buffer, uint32_t imageIndex);
     };
 }
 #endif //HELLION_VULKANHELPER_H

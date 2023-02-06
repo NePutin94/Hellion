@@ -2,9 +2,16 @@
 // Created by NePutin on 1/28/2023.
 //
 #include "../../include/vulkan/VulkanHelper.h"
+
 #define VMA_VULKAN_VERSION 1003000
 #define VMA_IMPLEMENTATION
+
 #include <vk_mem_alloc.h>
+
+#define GLM_FORCE_RADIANS
+
+#include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
 
 void Hellion::VulkanHelper::createInstance()
 {
@@ -160,25 +167,52 @@ void Hellion::VulkanHelper::init(GLFWwindow* window)
     createSwapChain(window);
     createImageViews();
     createRenderPass();
+
+    createDescriptorSetLayout();
+
     createGraphicsPipeline();
     createFramebuffers();
     createCommandPool();
-   // createVertexBuffer();
     createVertexBufferVma();
-    createIndexBuffer();
+    createIndexBufferVma();
+
+    createUniformBuffers();
+    createDescriptorPool();
+    createDescriptorSets();
+
     createCommandBuffers();
     createSyncObjects();
 }
 
 void Hellion::VulkanHelper::cleanup()
 {
+    char* str;
+    vmaBuildStatsString(g_hAllocator, &str, true);
+    std::string s = str;
+    std::ofstream outfile("log.json");
+    outfile << s;
+    outfile.close();
+
     for(size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
     {
         device.destroySemaphore(renderFinishedSemaphores[i]);
         device.destroySemaphore(imageAvailableSemaphores[i]);
         device.destroyFence(inFlightFences[i]);
     }
+
+    for(int i = 0; i < uniformBuffers.size(); ++i)
+        vmaDestroyBuffer(g_hAllocator, uniformBuffers[i], uniformBuffersAllocs[i]);
+    vmaDestroyBuffer(g_hAllocator, indexBuffer, indexAllocation);
+    vmaDestroyBuffer(g_hAllocator, vertexBuffer, vertexAllocation);
+    vmaDestroyAllocator(g_hAllocator);
+
     cleanupSwapChain();
+    device.destroyCommandPool(commandPool);
+    device.destroy(pipelineLayout);
+    device.destroyDescriptorPool(descriptorPool);
+    device.destroyDescriptorSetLayout(descriptorSetLayout);
+    device.destroy(renderPass);
+    device.destroy(graphicsPipeline);
     device.destroy();
     instance.destroyDebugUtilsMessengerEXT(debugMessenger, nullptr, dldi);
     instance.destroySurfaceKHR(surface);
@@ -509,7 +543,7 @@ void Hellion::VulkanHelper::createGraphicsPipeline()
     rasterizer.polygonMode = vk::PolygonMode::eFill;
     rasterizer.lineWidth = 1.0f;
     rasterizer.cullMode = vk::CullModeFlagBits::eBack;
-    rasterizer.frontFace = vk::FrontFace::eClockwise;
+    rasterizer.frontFace = vk::FrontFace::eCounterClockwise;
     rasterizer.depthBiasEnable = VK_FALSE;
 
     vk::PipelineMultisampleStateCreateInfo multisampling = {};
@@ -532,8 +566,8 @@ void Hellion::VulkanHelper::createGraphicsPipeline()
     colorBlending.blendConstants[3] = 0.0f;
 
     vk::PipelineLayoutCreateInfo pipelineLayoutInfo = {};
-    pipelineLayoutInfo.setLayoutCount = 0;
-    pipelineLayoutInfo.pushConstantRangeCount = 0;
+    pipelineLayoutInfo.setLayoutCount = 1;
+    pipelineLayoutInfo.pSetLayouts = &descriptorSetLayout;
 
     try
     {
@@ -647,6 +681,7 @@ void Hellion::VulkanHelper::createCommandPool()
     QueueFamilyIndices queueFamilyIndices = findQueueFamilies(physicalDevice);
 
     vk::CommandPoolCreateInfo poolInfo = {};
+    poolInfo.flags = vk::CommandPoolCreateFlagBits::eResetCommandBuffer;
     poolInfo.queueFamilyIndex = queueFamilyIndices.graphicsFamily.value();
 
     try
@@ -676,54 +711,54 @@ void Hellion::VulkanHelper::createCommandBuffers()
         throw std::runtime_error("failed to allocate command buffers!");
     }
 
-    for(size_t i = 0; i < commandBuffers.size(); i++)
-    {
-        vk::CommandBufferBeginInfo beginInfo = {};
-        beginInfo.flags = vk::CommandBufferUsageFlagBits::eSimultaneousUse;
-
-        try
-        {
-            commandBuffers[i].begin(beginInfo);
-        }
-        catch (vk::SystemError err)
-        {
-            throw std::runtime_error("failed to begin recording command buffer!");
-        }
-
-        vk::RenderPassBeginInfo renderPassInfo = {};
-        renderPassInfo.renderPass = renderPass;
-        renderPassInfo.framebuffer = swapChainFramebuffers[i];
-        renderPassInfo.renderArea.offset = vk::Offset2D{0, 0};
-        renderPassInfo.renderArea.extent = swapChainExtent;
-
-        vk::ClearValue clearColor = {std::array<float, 4>{0.0f, 0.0f, 0.0f, 1.0f}};
-        renderPassInfo.clearValueCount = 1;
-        renderPassInfo.pClearValues = &clearColor;
-
-        commandBuffers[i].beginRenderPass(renderPassInfo, vk::SubpassContents::eInline);
-
-        commandBuffers[i].bindPipeline(vk::PipelineBindPoint::eGraphics, graphicsPipeline);
-
-        vk::Buffer vertexBuffers[] = {vertexBuffer};
-
-        vk::DeviceSize offsets[] = {0};
-
-        commandBuffers[i].bindVertexBuffers(0, 1, vertexBuffers, offsets);
-
-        commandBuffers[i].bindIndexBuffer(indexBuffer, 0, vk::IndexType::eUint16);
-
-        commandBuffers[i].drawIndexed(static_cast<uint32_t>(indices.size()), 1, 0, 0, 0);
-
-        commandBuffers[i].endRenderPass();
-
-        try
-        {
-            commandBuffers[i].end();
-        } catch (vk::SystemError err)
-        {
-            throw std::runtime_error("failed to record command buffer!");
-        }
-    }
+//    for(size_t i = 0; i < commandBuffers.size(); i++)
+//    {
+//        vk::CommandBufferBeginInfo beginInfo = {};
+//        beginInfo.flags = vk::CommandBufferUsageFlagBits::eSimultaneousUse;
+//
+//        try
+//        {
+//            commandBuffers[i].begin(beginInfo);
+//        }
+//        catch (vk::SystemError err)
+//        {
+//            throw std::runtime_error("failed to begin recording command buffer!");
+//        }
+//
+//        vk::RenderPassBeginInfo renderPassInfo = {};
+//        renderPassInfo.renderPass = renderPass;
+//        renderPassInfo.framebuffer = swapChainFramebuffers[i];
+//        renderPassInfo.renderArea.offset = vk::Offset2D{0, 0};
+//        renderPassInfo.renderArea.extent = swapChainExtent;
+//
+//        vk::ClearValue clearColor = {std::array<float, 4>{0.0f, 0.0f, 0.0f, 1.0f}};
+//        renderPassInfo.clearValueCount = 1;
+//        renderPassInfo.pClearValues = &clearColor;
+//
+//        commandBuffers[i].beginRenderPass(renderPassInfo, vk::SubpassContents::eInline);
+//
+//        commandBuffers[i].bindPipeline(vk::PipelineBindPoint::eGraphics, graphicsPipeline);
+//
+//        vk::Buffer vertexBuffers[] = {vertexBuffer};
+//
+//        vk::DeviceSize offsets[] = {0};
+//
+//        commandBuffers[i].bindVertexBuffers(0, 1, vertexBuffers, offsets);
+//
+//        commandBuffers[i].bindIndexBuffer(indexBuffer, 0, vk::IndexType::eUint16);
+//
+//        commandBuffers[i].drawIndexed(static_cast<uint32_t>(indices.size()), 1, 0, 0, 0);
+//
+//        commandBuffers[i].endRenderPass();
+//
+//        try
+//        {
+//            commandBuffers[i].end();
+//        } catch (vk::SystemError err)
+//        {
+//            throw std::runtime_error("failed to record command buffer!");
+//        }
+//    }
 }
 
 void Hellion::VulkanHelper::createSyncObjects()
@@ -736,9 +771,14 @@ void Hellion::VulkanHelper::createSyncObjects()
     {
         for(size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
         {
-            imageAvailableSemaphores[i] = device.createSemaphore({});
+            vk::SemaphoreCreateInfo semaphoreInfo{};
+
+            vk::FenceCreateInfo fenceInfo{};
+            fenceInfo.flags = vk::FenceCreateFlagBits::eSignaled;
+
+            imageAvailableSemaphores[i] = device.createSemaphore(semaphoreInfo);
             renderFinishedSemaphores[i] = device.createSemaphore({});
-            inFlightFences[i] = device.createFence({vk::FenceCreateFlagBits::eSignaled});
+            inFlightFences[i] = device.createFence(fenceInfo);
         }
     } catch (vk::SystemError err)
     {
@@ -765,6 +805,12 @@ void Hellion::VulkanHelper::drawFrame(GLFWwindow* window)
         throw std::runtime_error("failed to acquire swap chain image!");
     }
 
+    device.resetFences(1, &inFlightFences[currentFrame]);
+
+    updateUniformBuffer(currentFrame);
+
+    recordCommandBuffer(commandBuffers[currentFrame], imageIndex);
+
     vk::SubmitInfo submitInfo = {};
 
     vk::Semaphore waitSemaphores[] = {imageAvailableSemaphores[currentFrame]};
@@ -774,13 +820,11 @@ void Hellion::VulkanHelper::drawFrame(GLFWwindow* window)
     submitInfo.pWaitDstStageMask = waitStages;
 
     submitInfo.commandBufferCount = 1;
-    submitInfo.pCommandBuffers = &commandBuffers[imageIndex];
+    submitInfo.pCommandBuffers = &commandBuffers[currentFrame];
 
     vk::Semaphore signalSemaphores[] = {renderFinishedSemaphores[currentFrame]};
     submitInfo.signalSemaphoreCount = 1;
     submitInfo.pSignalSemaphores = signalSemaphores;
-
-    device.resetFences(1, &inFlightFences[currentFrame]);
 
     try
     {
@@ -836,10 +880,7 @@ void Hellion::VulkanHelper::recreateSwapChain(GLFWwindow* window)
 
     createSwapChain(window);
     createImageViews();
-    createRenderPass();
-    createGraphicsPipeline();
     createFramebuffers();
-    createCommandBuffers();
 }
 
 void Hellion::VulkanHelper::cleanupSwapChain()
@@ -849,41 +890,12 @@ void Hellion::VulkanHelper::cleanupSwapChain()
         device.destroyFramebuffer(framebuffer);
     }
 
-    device.freeCommandBuffers(commandPool, commandBuffers);
-
-    device.destroyPipeline(graphicsPipeline);
-    device.destroyPipelineLayout(pipelineLayout);
-    device.destroyRenderPass(renderPass);
-
     for(auto imageView: swapChainImageViews)
     {
         device.destroyImageView(imageView);
     }
 
     device.destroySwapchainKHR(swapChain);
-}
-
-void Hellion::VulkanHelper::createVertexBuffer()
-{
-    vk::DeviceSize bufferSize = sizeof(vertices[0]) * vertices.size();
-
-    vk::Buffer stagingBuffer;
-    vk::DeviceMemory stagingBufferMemory;
-
-    createBuffer(bufferSize, vk::BufferUsageFlagBits::eTransferSrc, vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent,
-                 stagingBuffer, stagingBufferMemory);
-
-    void* data = device.mapMemory(stagingBufferMemory, 0, bufferSize);
-    memcpy(data, vertices.data(), (size_t) bufferSize);
-    device.unmapMemory(stagingBufferMemory);
-
-    createBuffer(bufferSize, vk::BufferUsageFlagBits::eTransferDst | vk::BufferUsageFlagBits::eVertexBuffer, vk::MemoryPropertyFlagBits::eDeviceLocal,
-                 vertexBuffer, vertexBufferMemory);
-
-    copyBuffer(stagingBuffer, vertexBuffer, bufferSize);
-
-    device.destroyBuffer(stagingBuffer);
-    device.freeMemory(stagingBufferMemory);
 }
 
 uint32_t Hellion::VulkanHelper::findMemoryType(uint32_t typeFilter, vk::MemoryPropertyFlags properties)
@@ -932,30 +944,6 @@ void Hellion::VulkanHelper::createBuffer(vk::DeviceSize size, vk::BufferUsageFla
 
     device.bindBufferMemory(buffer, bufferMemory, 0);
 }
-
-void Hellion::VulkanHelper::createIndexBuffer()
-{
-    vk::DeviceSize bufferSize = sizeof(indices[0]) * indices.size();
-
-    vk::Buffer stagingBuffer;
-    vk::DeviceMemory stagingBufferMemory;
-    createBuffer(bufferSize, vk::BufferUsageFlagBits::eTransferSrc, vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent,
-                 stagingBuffer, stagingBufferMemory);
-
-
-    void* data = device.mapMemory(stagingBufferMemory, 0, bufferSize);
-    memcpy(data, indices.data(), (size_t) bufferSize);
-    device.unmapMemory(stagingBufferMemory);
-
-    createBuffer(bufferSize, vk::BufferUsageFlagBits::eTransferDst | vk::BufferUsageFlagBits::eIndexBuffer, vk::MemoryPropertyFlagBits::eDeviceLocal,
-                 indexBuffer, vertexBufferMemory);
-
-    copyBuffer(stagingBuffer, indexBuffer, bufferSize);
-
-    device.destroyBuffer(stagingBuffer);
-    device.freeMemory(stagingBufferMemory);
-}
-
 
 void Hellion::VulkanHelper::copyBuffer(vk::Buffer srcBuffer, vk::Buffer dstBuffer, vk::DeviceSize size)
 {
@@ -1010,7 +998,7 @@ Hellion::VulkanHelper::createBufferVma(vk::DeviceSize size, vk::BufferUsageFlags
 
     VmaAllocationCreateInfo vbAllocCreateInfo = {};
     vbAllocCreateInfo.usage = VMA_MEMORY_USAGE_AUTO;
-    vbAllocCreateInfo.flags = flags;// VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT | VMA_ALLOCATION_CREATE_MAPPED_BIT;
+    vbAllocCreateInfo.flags = flags;
 
     VmaAllocation stagingVertexBufferAlloc = VK_NULL_HANDLE;
     VmaAllocationInfo stagingVertexBufferAllocInfo = {};
@@ -1034,7 +1022,175 @@ void Hellion::VulkanHelper::createVertexBufferVma()
                                                                       vertexBuffer, 0);
 
     copyBuffer(stagingBuffer, vertexBuffer, bufferSize);
+    vertexAllocation = VertexBufferAlloc;
+    vmaDestroyBuffer(g_hAllocator, stagingBuffer, stagingVertexBufferAlloc);
+}
+
+void Hellion::VulkanHelper::createIndexBufferVma()
+{
+    vk::DeviceSize bufferSize = sizeof(indices[0]) * indices.size();
+
+    vk::Buffer stagingBuffer;
+    auto [stagingVertexBufferAlloc, stagingVertexBufferAllocInfo] = createBufferVma(bufferSize, vk::BufferUsageFlagBits::eTransferSrc, stagingBuffer,
+                                                                                    VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT |
+                                                                                    VMA_ALLOCATION_CREATE_MAPPED_BIT);
+
+
+    memcpy(stagingVertexBufferAllocInfo.pMappedData, indices.data(), (size_t) bufferSize);
+
+
+    auto [IndexBufferAlloc, IndexBufferAllocInfo] = createBufferVma(bufferSize,
+                                                                    vk::BufferUsageFlagBits::eTransferDst | vk::BufferUsageFlagBits::eIndexBuffer,
+                                                                    indexBuffer, 0);
+    indexAllocation = IndexBufferAlloc;
+    copyBuffer(stagingBuffer, indexBuffer, bufferSize);
 
     vmaDestroyBuffer(g_hAllocator, stagingBuffer, stagingVertexBufferAlloc);
+}
+
+void Hellion::VulkanHelper::createUniformBuffers()
+{
+    vk::DeviceSize bufferSize = sizeof(UniformBufferObject);
+
+    uniformBuffers.resize(MAX_FRAMES_IN_FLIGHT);
+    uniformBuffersMapped.resize(MAX_FRAMES_IN_FLIGHT);
+    uniformBuffersAllocs.resize(MAX_FRAMES_IN_FLIGHT);
+
+    for(size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
+    {
+
+        auto [UniformBufferAlloc, UniformBufferAllocInfo] = createBufferVma(bufferSize, vk::BufferUsageFlagBits::eUniformBuffer, uniformBuffers[i],
+                                                                            VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT |
+                                                                            VMA_ALLOCATION_CREATE_MAPPED_BIT);
+        uniformBuffersAllocs[i] = UniformBufferAlloc;
+        uniformBuffersMapped[i] = UniformBufferAllocInfo.pMappedData;
+    }
+}
+
+void Hellion::VulkanHelper::createDescriptorSetLayout()
+{
+    vk::DescriptorSetLayoutBinding uboLayoutBinding{};
+    uboLayoutBinding.binding = 0;
+    uboLayoutBinding.descriptorCount = 1;
+    uboLayoutBinding.descriptorType = vk::DescriptorType::eUniformBuffer;
+    uboLayoutBinding.pImmutableSamplers = nullptr;
+    uboLayoutBinding.stageFlags = vk::ShaderStageFlagBits::eVertex;
+
+    vk::DescriptorSetLayoutCreateInfo layoutInfo{};
+    layoutInfo.bindingCount = 1;
+    layoutInfo.pBindings = &uboLayoutBinding;
+
+    descriptorSetLayout = device.createDescriptorSetLayout(layoutInfo);
+}
+
+void Hellion::VulkanHelper::updateUniformBuffer(uint32_t currentImage)
+{
+    static auto startTime = std::chrono::high_resolution_clock::now();
+
+    auto currentTime = std::chrono::high_resolution_clock::now();
+    float time = std::chrono::duration<float, std::chrono::seconds::period>(currentTime - startTime).count();
+
+    UniformBufferObject ubo{};
+    ubo.model = glm::rotate(glm::mat4(1.0f), time * glm::radians(90.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+    ubo.view = glm::lookAt(glm::vec3(2.0f, 2.0f, 2.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+    ubo.proj = glm::perspective(glm::radians(45.0f), swapChainExtent.width / (float) swapChainExtent.height, 0.1f, 10.0f);
+    ubo.proj[1][1] *= -1;
+
+    memcpy(uniformBuffersMapped[currentImage], &ubo, sizeof(ubo));
+}
+
+void Hellion::VulkanHelper::createDescriptorPool()
+{
+    vk::DescriptorPoolSize poolSize{};
+    poolSize.type = vk::DescriptorType::eUniformBuffer;
+    poolSize.descriptorCount = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT);
+
+    vk::DescriptorPoolCreateInfo poolInfo{};
+    poolInfo.poolSizeCount = 1;
+    poolInfo.pPoolSizes = &poolSize;
+    poolInfo.maxSets = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT);
+
+    descriptorPool = device.createDescriptorPool(poolInfo);
+}
+
+void Hellion::VulkanHelper::createDescriptorSets()
+{
+    std::vector<vk::DescriptorSetLayout> layouts(MAX_FRAMES_IN_FLIGHT, descriptorSetLayout);
+    vk::DescriptorSetAllocateInfo allocInfo{};
+    allocInfo.descriptorPool = descriptorPool;
+    allocInfo.descriptorSetCount = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT);
+    allocInfo.pSetLayouts = layouts.data();
+
+    descriptorSets.resize(MAX_FRAMES_IN_FLIGHT);
+    descriptorSets = device.allocateDescriptorSets(allocInfo);
+
+    for(size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
+    {
+        vk::DescriptorBufferInfo bufferInfo{};
+        bufferInfo.buffer = uniformBuffers[i];
+        bufferInfo.offset = 0;
+        bufferInfo.range = sizeof(UniformBufferObject);
+
+        vk::WriteDescriptorSet descriptorWrite{};
+        descriptorWrite.dstSet = descriptorSets[i];
+        descriptorWrite.dstBinding = 0;
+        descriptorWrite.dstArrayElement = 0;
+        descriptorWrite.descriptorType = vk::DescriptorType::eUniformBuffer;
+        descriptorWrite.descriptorCount = 1;
+        descriptorWrite.pBufferInfo = &bufferInfo;
+
+        device.updateDescriptorSets(descriptorWrite, {});
+    }
+}
+
+void Hellion::VulkanHelper::recordCommandBuffer(vk::CommandBuffer& buffer, uint32_t imageIndex)
+{
+    vk::CommandBufferBeginInfo beginInfo = {};
+    beginInfo.flags = vk::CommandBufferUsageFlagBits::eOneTimeSubmit;
+
+    try
+    {
+        buffer.begin(beginInfo);
+    }
+    catch (vk::SystemError err)
+    {
+        throw std::runtime_error("failed to begin recording command buffer!");
+    }
+
+    vk::RenderPassBeginInfo renderPassInfo = {};
+    renderPassInfo.renderPass = renderPass;
+    renderPassInfo.framebuffer = swapChainFramebuffers[imageIndex];
+    renderPassInfo.renderArea.offset = vk::Offset2D{0, 0};
+    renderPassInfo.renderArea.extent = swapChainExtent;
+
+    vk::ClearValue clearColor = {std::array<float, 4>{0.0f, 0.0f, 0.0f, 1.0f}};
+    renderPassInfo.clearValueCount = 1;
+    renderPassInfo.pClearValues = &clearColor;
+
+    buffer.beginRenderPass(renderPassInfo, vk::SubpassContents::eInline);
+
+    buffer.bindPipeline(vk::PipelineBindPoint::eGraphics, graphicsPipeline);
+
+    vk::Buffer vertexBuffers[] = {vertexBuffer};
+
+    vk::DeviceSize offsets[] = {0};
+
+    buffer.bindVertexBuffers(0, 1, vertexBuffers, offsets);
+
+    buffer.bindIndexBuffer(indexBuffer, 0, vk::IndexType::eUint16);
+
+    buffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, pipelineLayout, 0, 1, &descriptorSets[currentFrame], 0, nullptr);
+
+    buffer.drawIndexed(static_cast<uint32_t>(indices.size()), 1, 0, 0, 0);
+
+    buffer.endRenderPass();
+
+    try
+    {
+        buffer.end();
+    } catch (vk::SystemError err)
+    {
+        throw std::runtime_error("failed to record command buffer!");
+    }
 }
 
