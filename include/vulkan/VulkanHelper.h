@@ -6,6 +6,7 @@
 #define HELLION_VULKANHELPER_H
 
 #define GLFW_INCLUDE_VULKAN
+#define GLM_FORCE_DEPTH_ZERO_TO_ONE
 
 #include <GLFW/glfw3.h>
 #include <vulkan/vulkan.hpp>
@@ -22,8 +23,9 @@ namespace Hellion
 {
     struct Vertex
     {
-        glm::vec2 pos;
+        glm::vec3 pos;
         glm::vec3 color;
+        glm::vec2 texCoord;
 
         static vk::VertexInputBindingDescription getBindingDescription()
         {
@@ -35,19 +37,24 @@ namespace Hellion
             return bindingDescription;
         }
 
-        static std::array<vk::VertexInputAttributeDescription, 2> getAttributeDescriptions()
+        static std::array<vk::VertexInputAttributeDescription, 3> getAttributeDescriptions()
         {
-            std::array<vk::VertexInputAttributeDescription, 2> attributeDescriptions{};
+            std::array<vk::VertexInputAttributeDescription, 3> attributeDescriptions{};
 
             attributeDescriptions[0].binding = 0;
             attributeDescriptions[0].location = 0;
-            attributeDescriptions[0].format = vk::Format::eR32G32Sfloat;
+            attributeDescriptions[0].format = vk::Format::eR32G32B32Sfloat;
             attributeDescriptions[0].offset = offsetof(Vertex, pos);
 
             attributeDescriptions[1].binding = 0;
             attributeDescriptions[1].location = 1;
             attributeDescriptions[1].format = vk::Format::eR32G32B32Sfloat;
             attributeDescriptions[1].offset = offsetof(Vertex, color);
+
+            attributeDescriptions[2].binding = 0;
+            attributeDescriptions[2].location = 2;
+            attributeDescriptions[2].format = vk::Format::eR32G32Sfloat;
+            attributeDescriptions[2].offset = offsetof(Vertex, texCoord);
 
             return attributeDescriptions;
         }
@@ -79,6 +86,7 @@ namespace Hellion
             alignas(16) glm::mat4 model;
             alignas(16) glm::mat4 view;
             alignas(16) glm::mat4 proj;
+            alignas(16) float time;
         };
 
         std::vector<vk::Buffer> uniformBuffers;
@@ -88,8 +96,20 @@ namespace Hellion
         std::vector<vk::DescriptorSet> descriptorSets;
         std::vector<VmaAllocation> uniformBuffersAllocs;
 
+        vk::Image depthImage;
+        vk::ImageView depthImageView;
+        VmaAllocation depthImageAlloc;
+
+        vk::Image textureImage;
+        VmaAllocation textureImageAlloc;
+        vk::ImageView textureImageView;
+        vk::Sampler textureSampler;
+
         VmaAllocator g_hAllocator;
+
+        vk::Buffer vertexBuffer;
         VmaAllocation vertexAllocation;
+        vk::Buffer indexBuffer;
         VmaAllocation indexAllocation;
 
         vk::PhysicalDevice physicalDevice{nullptr};
@@ -114,12 +134,6 @@ namespace Hellion
         vk::PipelineLayout pipelineLayout;
         vk::Pipeline graphicsPipeline;
 
-        vk::Buffer vertexBuffer;
-        vk::DeviceMemory vertexBufferMemory;
-
-        vk::Buffer indexBuffer;
-        vk::DeviceMemory indexBufferMemory;
-
         VkCommandPool commandPool;
         std::vector<vk::CommandBuffer, std::allocator<vk::CommandBuffer>> commandBuffers;
 
@@ -138,14 +152,20 @@ namespace Hellion
 
         //geometry
         const std::vector<Vertex> vertices = {
-                {{-0.5f, -0.5f}, {1.0f, 0.0f, 0.0f}},
-                {{0.5f,  -0.5f}, {0.0f, 1.0f, 0.0f}},
-                {{0.5f,  0.5f},  {0.0f, 0.0f, 1.0f}},
-                {{-0.5f, 0.5f},  {1.0f, 1.0f, 1.0f}}
+                {{-0.5f, -0.5f, 0.0f}, {1.0f, 0.0f, 0.0f}, {1.0f, 0.0f}},
+                {{0.5f, -0.5f, 0.0f}, {0.0f, 1.0f, 0.0f}, {0.0f, 0.0f}},
+                {{0.5f, 0.5f, 0.0f}, {0.0f, 0.0f, 1.0f}, {0.0f, 1.0f}},
+                {{-0.5f, 0.5f, 0.0f}, {1.0f, 1.0f, 1.0f}, {1.0f, 1.0f}},
+
+                {{-0.5f, -0.5f, -0.5f}, {1.0f, 0.0f, 0.0f}, {1.0f, 0.0f}},
+                {{0.5f, -0.5f, -0.5f}, {0.0f, 1.0f, 0.0f}, {0.0f, 0.0f}},
+                {{0.5f, 0.5f, -0.5f}, {0.0f, 0.0f, 1.0f}, {0.0f, 1.0f}},
+                {{-0.5f, 0.5f, -0.5f}, {1.0f, 1.0f, 1.0f}, {1.0f, 1.0f}}
         };
 
         const std::vector<uint16_t> indices = {
-                0, 1, 2, 2, 3, 0
+                0, 1, 2, 2, 3, 0,
+                4, 5, 6, 6, 7, 4
         };
 
         static constexpr uint32_t GetVulkanApiVersion()
@@ -271,9 +291,6 @@ namespace Hellion
 
         uint32_t findMemoryType(uint32_t typeFilter, vk::MemoryPropertyFlags properties);
 
-        void
-        createBuffer(vk::DeviceSize size, vk::BufferUsageFlags usage, vk::MemoryPropertyFlags properties, vk::Buffer& buffer, vk::DeviceMemory& bufferMemory);
-
         void copyBuffer(vk::Buffer srcBuffer, vk::Buffer dstBuffer, vk::DeviceSize size);
 
         void createVmaAllocator();
@@ -296,6 +313,30 @@ namespace Hellion
         void createDescriptorSets();
 
         void recordCommandBuffer(vk::CommandBuffer& buffer, uint32_t imageIndex);
+
+        void createTextureImage();
+
+        std::pair<vk::Image, VmaAllocation> createImage(uint32_t width, uint32_t height, vk::Format format, vk::ImageTiling tiling, vk::ImageUsageFlags usage);
+
+        void transitionImageLayout(vk::Format format, vk::ImageLayout oldLayout, vk::ImageLayout newLayout);
+
+        vk::CommandBuffer beginSingleTimeCommands();
+
+        void endSingleTimeCommands(vk::CommandBuffer& buffer);
+
+        void copyBufferToImage(vk::Buffer buffer, vk::Image image, uint32_t width, uint32_t height);
+
+        void createTextureImageView();
+
+        vk::ImageView createImageView(vk::Image& image, vk::Format format, vk::ImageAspectFlags aspectFlags);
+
+        void createTextureSampler();
+
+        void createDepthResources();
+
+        vk::Format findDepthFormat();
+
+        vk::Format findSupportedFormat(const std::vector<vk::Format>& candidates, vk::ImageTiling tiling, vk::FormatFeatureFlags features);
     };
 }
 #endif //HELLION_VULKANHELPER_H

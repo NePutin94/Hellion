@@ -55,6 +55,8 @@ FetchContent_MakeAvailable(VulkanMemoryAllocator)
 file(GLOB CORE_SRC RELATIVE "${CMAKE_SOURCE_DIR}/" "src/*.cpp")
 file(GLOB VULKAN_WRAPPER RELATIVE "${CMAKE_SOURCE_DIR}/" "src/vulkan/*.cpp")
 
+add_subdirectory(lib/stb)
+
 add_executable(Hellion main.cpp ${CORE_SRC} ${VULKAN_WRAPPER})
 message(STATUS ${Vulkan_FOUND})
-target_link_libraries(Hellion PUBLIC nlohmann_json::nlohmann_json glm::glm glfw Vulkan::Vulkan range-v3::range-v3 fmt::fmt VulkanMemoryAllocator)
+target_link_libraries(Hellion PUBLIC nlohmann_json::nlohmann_json glm::glm glfw Vulkan::Vulkan range-v3::range-v3 fmt::fmt VulkanMemoryAllocator STB)
