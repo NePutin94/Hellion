@@ -1,9 +1,10 @@
-#include "include/Window.h"
+#include "include/HApp.h"
 
 int main()
 {
-    Hellion::Window w({1100,900});
-    w.run();
+    {
+        Hellion::HApp app;
+    }
 
     return 0;
 }

@@ -29,28 +29,22 @@ namespace Hellion
             initWindow();
         }
 
-        void createWindowSurface(vk::Instance instance, vk::SurfaceKHR* surface)
-        {
-            if(glfwCreateWindowSurface(instance, window, nullptr, reinterpret_cast<VkSurfaceKHR*>(surface)) != VK_SUCCESS)
-            {
-                throw std::runtime_error("failed to create window surface!");
-            }
-        }
-
         ~HWindow()
         {
             glfwDestroyWindow(window);
             glfwTerminate();
         }
 
+        void createWindowSurface(vk::Instance instance, vk::SurfaceKHR* surface);
+
         int getWidth() const
         {
             return width;
         }
 
-        void setWidth(int width)
+        void setWidth(int _width)
         {
-            width = width;
+            width = _width;
         }
 
         int getHeight() const
@@ -58,9 +52,9 @@ namespace Hellion
             return height;
         }
 
-        void setHeight(int height)
+        void setHeight(int _height)
         {
-            height = height;
+            height = _height;
         }
 
         GLFWwindow* getWindow() const
@@ -68,23 +62,13 @@ namespace Hellion
             return window;
         }
 
-        void setWindow(GLFWwindow* window)
+        void setWindow(GLFWwindow* _window)
         {
-            this->window = window;
+            window = _window;
         }
 
     private:
-        void initWindow()
-        {
-            glfwInit();
-
-            glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
-            glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
-
-            window = glfwCreateWindow(width, height, windowName.c_str(), nullptr, nullptr);
-            glfwSetWindowUserPointer(window, this);
-            glfwSetFramebufferSizeCallback(window, framebufferResizeCallback);
-        }
+        void initWindow();
 
         static void framebufferResizeCallback(GLFWwindow* window, int width, int height)
         {

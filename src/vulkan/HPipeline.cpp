@@ -3,3 +3,54 @@
 //
 
 #include "../../include/vulkan/HPipeline.h"
+
+void Hellion::HPipeline::createGraphicsPipeline(Hellion::PipeConf conf, std::array<HShader, 2> shaders)
+{
+    auto vertShaderModule = shaders[0].createShaderModule(device.getDevice());
+    auto fragShaderModule = shaders[1].createShaderModule(device.getDevice());
+
+    auto vertShaderStageInfo =
+            HPipelineHelper::shaderStage(vertShaderModule, vk::ShaderStageFlagBits::eVertex);
+    auto fragShaderStageInfo =
+            HPipelineHelper::shaderStage(fragShaderModule, vk::ShaderStageFlagBits::eFragment);
+    vk::PipelineShaderStageCreateInfo shaderStages[] = {vertShaderStageInfo, fragShaderStageInfo};
+
+    auto bindingDescription = HVertex::getBindingDescription();
+    auto attributeDescriptions = HVertex::getAttributeDescriptions();
+    std::vector<vk::VertexInputAttributeDescription> atr(attributeDescriptions.begin(), attributeDescriptions.end());
+    auto vertexInputInfo = HPipelineHelper::vertexInputState(bindingDescription, atr);
+
+    auto viewportState = HPipelineHelper::viewportState(conf.viewport, conf.scissor);
+
+    vk::GraphicsPipelineCreateInfo pipelineInfo = {};
+    pipelineInfo.stageCount = 2;
+    pipelineInfo.pStages = shaderStages;
+
+    pipelineInfo.pVertexInputState = &vertexInputInfo;
+    pipelineInfo.pInputAssemblyState = &conf.inputAssemblyInfo;
+    pipelineInfo.pViewportState = &viewportState;
+    pipelineInfo.pRasterizationState = &conf.rasterizationInfo;
+    pipelineInfo.pMultisampleState = &conf.multisampleInfo;
+    pipelineInfo.pDepthStencilState = nullptr;  // Optional
+    pipelineInfo.pColorBlendState = &conf.colorBlendInfo;
+    pipelineInfo.pDynamicState = nullptr;  // Optional
+    pipelineInfo.pDepthStencilState = &conf.depthStencilInfo;
+
+    pipelineInfo.layout = conf.pipelineLayout;
+    pipelineInfo.renderPass = conf.renderPass;
+    pipelineInfo.subpass = conf.subpass;
+
+    pipelineInfo.basePipelineHandle = VK_NULL_HANDLE;  // Optional
+    pipelineInfo.basePipelineIndex = -1;               // Optional
+    try
+    {
+        pipeline = device.getDevice().createGraphicsPipeline(nullptr, pipelineInfo).value;
+    }
+    catch (vk::SystemError err)
+    {
+        throw std::runtime_error("failed to create graphics pipeline!");
+    }
+
+    device.getDevice().destroy(vertShaderModule);
+    device.getDevice().destroy(fragShaderModule);
+}

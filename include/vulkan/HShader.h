@@ -14,7 +14,6 @@ namespace Hellion
     {
     private:
         std::string path;
-        vk::UniqueShaderModule shaderModule;
 
         std::vector<char> read()
         {
@@ -39,20 +38,17 @@ namespace Hellion
         HShader(const std::string& filePath) : path(filePath)
         {}
 
-        vk::UniqueShaderModule createShaderModule(vk::Device& device)
+        vk::ShaderModule createShaderModule(vk::Device device)
         {
+            vk::ShaderModule shaderModule;
             auto code = read();
             try
             {
-                shaderModule = device.createShaderModuleUnique({vk::ShaderModuleCreateFlags(), code.size(), reinterpret_cast<const uint32_t*>(code.data())});
+                shaderModule = device.createShaderModule({vk::ShaderModuleCreateFlags(), code.size(), reinterpret_cast<const uint32_t*>(code.data())});
             } catch (vk::SystemError err)
             {
                 throw std::runtime_error("failed to create shader module!");
             }
-        }
-
-        vk::UniqueShaderModule& getShaderModule()
-        {
             return shaderModule;
         }
     };

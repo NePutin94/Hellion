@@ -2,7 +2,7 @@ name: Windows
 
 on:
   on: [push, pull_request]
-  
+
 env:
   BUILD_TYPE: Release
 
