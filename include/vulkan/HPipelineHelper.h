@@ -146,6 +146,8 @@ namespace Hellion
 
     struct PipeConf
     {
+        std::vector<vk::VertexInputBindingDescription> bindingDescriptions{};
+        std::vector<vk::VertexInputAttributeDescription> attributeDescriptions{};
         vk::PipelineInputAssemblyStateCreateInfo inputAssemblyInfo;
         vk::Viewport viewport;
         vk::Rect2D scissor;
@@ -157,6 +159,16 @@ namespace Hellion
         vk::RenderPass renderPass;
         vk::PipelineLayout pipelineLayout;
         uint32_t subpass = 0;
+
+        PipeConf() = default;
+
+        PipeConf(const PipeConf&) = delete;
+
+        PipeConf(PipeConf&&) = default;
+
+        PipeConf& operator=(const PipeConf&) = delete;
+
+        PipeConf& operator=(PipeConf&&) = default;
 
         static PipeConf createDefault(HSwapChain& swapChain)
         {
@@ -172,6 +184,52 @@ namespace Hellion
             configInfo.depthStencilInfo = HPipelineHelper::depthStencilState();
             configInfo.subpass = 0;
             configInfo.renderPass = swapChain.getRenderPass();
+            return configInfo;
+        }
+
+        static PipeConf createDefault2(HSwapChain& swapChain)
+        {
+            PipeConf configInfo{};
+
+            configInfo.inputAssemblyInfo.topology = vk::PrimitiveTopology::eTriangleList;
+            configInfo.inputAssemblyInfo.primitiveRestartEnable = VK_FALSE;
+
+            configInfo.rasterizationInfo.depthClampEnable = VK_FALSE;
+            configInfo.rasterizationInfo.rasterizerDiscardEnable = VK_FALSE;
+            configInfo.rasterizationInfo.polygonMode = vk::PolygonMode::eFill;
+            configInfo.rasterizationInfo.lineWidth = 1.0f;
+            configInfo.rasterizationInfo.cullMode = vk::CullModeFlagBits::eBack;
+            configInfo.rasterizationInfo.frontFace = vk::FrontFace::eCounterClockwise;
+            configInfo.rasterizationInfo.depthBiasEnable = VK_FALSE;
+
+            configInfo.multisampleInfo.sampleShadingEnable = VK_FALSE;
+            configInfo.multisampleInfo.rasterizationSamples = vk::SampleCountFlagBits::e1;
+
+            configInfo.depthStencilInfo.depthTestEnable = VK_TRUE;
+            configInfo.depthStencilInfo.depthWriteEnable = VK_TRUE;
+            configInfo.depthStencilInfo.depthCompareOp = vk::CompareOp::eLess;
+            configInfo.depthStencilInfo.depthBoundsTestEnable = VK_FALSE;
+            configInfo.depthStencilInfo.stencilTestEnable = VK_FALSE;
+
+            configInfo.colorBlendAttachment.colorWriteMask =
+                    vk::ColorComponentFlagBits::eR | vk::ColorComponentFlagBits::eG | vk::ColorComponentFlagBits::eB | vk::ColorComponentFlagBits::eA;
+            configInfo.colorBlendAttachment.blendEnable = VK_FALSE;
+
+            configInfo.colorBlendInfo.logicOpEnable = VK_FALSE;
+            configInfo.colorBlendInfo.logicOp = vk::LogicOp::eCopy;
+            configInfo.colorBlendInfo.attachmentCount = 1;
+            configInfo.colorBlendInfo.pAttachments = &configInfo.colorBlendAttachment;
+            configInfo.colorBlendInfo.blendConstants[0] = 0.0f;
+            configInfo.colorBlendInfo.blendConstants[1] = 0.0f;
+            configInfo.colorBlendInfo.blendConstants[2] = 0.0f;
+            configInfo.colorBlendInfo.blendConstants[3] = 0.0f;
+
+            auto swapChainExtent = swapChain.getSwapChainExtent();
+            configInfo.viewport = vk::Viewport{0.0f, 0.0f, (float) swapChainExtent.width, (float) swapChainExtent.height, 0.0f, 1.0f};
+            configInfo.scissor = vk::Rect2D{{0, 0}, swapChainExtent};
+            configInfo.subpass = 0;
+            configInfo.renderPass = swapChain.getRenderPass();
+
             return configInfo;
         }
     };

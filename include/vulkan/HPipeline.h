@@ -22,9 +22,9 @@ namespace Hellion
         HDevice& device;
         std::array<HShader, 2> shaderLayout;
     public:
-        HPipeline(HDevice& device, std::array<HShader, 2> shaderLayout, PipeConf& configInfo) : device{device}, shaderLayout{shaderLayout}
+        HPipeline(HDevice& device, std::array<HShader, 2> shaderLayout, PipeConf configInfo) : device{device}, shaderLayout{shaderLayout}
         {
-            createGraphicsPipeline(configInfo, std::move(shaderLayout));
+            createGraphicsPipeline(std::move(configInfo), std::move(shaderLayout));
         }
 
         ~HPipeline()

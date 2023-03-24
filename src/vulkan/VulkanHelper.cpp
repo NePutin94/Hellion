@@ -8,14 +8,15 @@
 
 #include <vk_mem_alloc.h>
 
-#define GLM_FORCE_RADIANS
-
-#include <glm/glm.hpp>
-#include <glm/gtc/matrix_transform.hpp>
-
 #define STB_IMAGE_IMPLEMENTATION
 
 #include <stb_image.h>
+
+#define TINYOBJLOADER_IMPLEMENTATION
+
+#include <tiny_obj_loader.h>
+
+#include "../../include/vulkan/ImGuiRender.h"
 
 void Hellion::VulkanHelper::createInstance()
 {
@@ -185,6 +186,8 @@ void Hellion::VulkanHelper::init(GLFWwindow* window)
     createTextureImageView();
     createTextureSampler();
 
+    loadModel();
+
     createVertexBufferVma();
     createIndexBufferVma();
 
@@ -194,6 +197,9 @@ void Hellion::VulkanHelper::init(GLFWwindow* window)
 
     createCommandBuffers();
     createSyncObjects();
+
+    ImGuiRenderer render;
+    render.initImgui(device, window, instance, physicalDevice, graphicsQueue, renderPass, commandPool);
 }
 
 void Hellion::VulkanHelper::cleanup()
@@ -844,7 +850,7 @@ void Hellion::VulkanHelper::createSyncObjects()
     }
 }
 
-void Hellion::VulkanHelper::drawFrame(GLFWwindow* window)
+void Hellion::VulkanHelper::drawFrame(GLFWwindow* window, ImDrawData* draw_data)
 {
     device.waitForFences(1, &inFlightFences[currentFrame], VK_TRUE, std::numeric_limits<uint64_t>::max());
 
@@ -867,7 +873,7 @@ void Hellion::VulkanHelper::drawFrame(GLFWwindow* window)
 
     updateUniformBuffer(currentFrame);
 
-    recordCommandBuffer(commandBuffers[currentFrame], imageIndex);
+    recordCommandBuffer(commandBuffers[currentFrame], imageIndex, draw_data);
 
     vk::SubmitInfo submitInfo = {};
 
@@ -944,7 +950,7 @@ void Hellion::VulkanHelper::recreateSwapChain(GLFWwindow* window)
 
 void Hellion::VulkanHelper::cleanupSwapChain()
 {
-    vmaDestroyImage(g_hAllocator,depthImage,depthImageAlloc);
+    vmaDestroyImage(g_hAllocator, depthImage, depthImageAlloc);
     device.destroy(depthImageView);
 
     for(auto framebuffer: swapChainFramebuffers)
@@ -1123,7 +1129,7 @@ void Hellion::VulkanHelper::updateUniformBuffer(uint32_t currentImage)
     float time = std::chrono::duration<float, std::chrono::seconds::period>(currentTime - startTime).count();
 
     UniformBufferObject ubo{};
-    ubo.model = glm::rotate(glm::mat4(1.0f), glm::radians(15.0f) * time, glm::vec3(0.0f, 0.0f, 1.0f));
+    ubo.model = glm::rotate(glm::mat4(1.0f), time * glm::radians(90.0f), glm::vec3(0.0f, 0.0f, 1.0f));
     ubo.view = glm::lookAt(glm::vec3(2.0f, 2.0f, 2.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
     ubo.proj = glm::perspective(glm::radians(45.0f), swapChainExtent.width / (float) swapChainExtent.height, 0.1f, 10.0f);
     ubo.proj[1][1] *= -1;
@@ -1189,7 +1195,7 @@ void Hellion::VulkanHelper::createDescriptorSets()
     }
 }
 
-void Hellion::VulkanHelper::recordCommandBuffer(vk::CommandBuffer& buffer, uint32_t imageIndex)
+void Hellion::VulkanHelper::recordCommandBuffer(vk::CommandBuffer& buffer, uint32_t imageIndex, ImDrawData* draw_data)
 {
     vk::CommandBufferBeginInfo beginInfo = {};
     beginInfo.flags = vk::CommandBufferUsageFlagBits::eOneTimeSubmit;
@@ -1210,8 +1216,8 @@ void Hellion::VulkanHelper::recordCommandBuffer(vk::CommandBuffer& buffer, uint3
     renderPassInfo.renderArea.extent = swapChainExtent;
 
     std::array<vk::ClearValue, 2> clearValues{};
-    clearValues[0].color = vk::ClearColorValue{0.0f, 0.0f, 0.0f, 1.0f};
-    clearValues[1].depthStencil = vk::ClearDepthStencilValue{1.0f, 0};
+    clearValues[0].color = vk::ClearColorValue(0.0f, 0.0f, 0.0f, 1.0f);
+    clearValues[1].depthStencil = vk::ClearDepthStencilValue(1.0f, 0);
 
     renderPassInfo.clearValueCount = static_cast<uint32_t>(clearValues.size());
     renderPassInfo.pClearValues = clearValues.data();
@@ -1240,11 +1246,14 @@ void Hellion::VulkanHelper::recordCommandBuffer(vk::CommandBuffer& buffer, uint3
 
     buffer.bindVertexBuffers(0, 1, vertexBuffers, offsets);
 
-    buffer.bindIndexBuffer(indexBuffer, 0, vk::IndexType::eUint16);
+    buffer.bindIndexBuffer(indexBuffer, 0, vk::IndexType::eUint32);
 
     buffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, pipelineLayout, 0, 1, &descriptorSets[currentFrame], 0, nullptr);
 
     buffer.drawIndexed(static_cast<uint32_t>(indices.size()), 1, 0, 0, 0);
+
+
+    ImGui_ImplVulkan_RenderDrawData(draw_data, buffer);
 
     buffer.endRenderPass();
 
@@ -1260,7 +1269,7 @@ void Hellion::VulkanHelper::recordCommandBuffer(vk::CommandBuffer& buffer, uint3
 void Hellion::VulkanHelper::createTextureImage()
 {
     int texWidth, texHeight, texChannels;
-    stbi_uc* pixels = stbi_load("../Data/Textures/texture.jpg", &texWidth, &texHeight, &texChannels, STBI_rgb_alpha);
+    stbi_uc* pixels = stbi_load(TEXTURE_PATH.c_str(), &texWidth, &texHeight, &texChannels, STBI_rgb_alpha);
     vk::DeviceSize imageSize = texWidth * texHeight * 4;
 
     if(!pixels)
@@ -1490,5 +1499,49 @@ vk::Format Hellion::VulkanHelper::findSupportedFormat(const std::vector<vk::Form
     }
 
     throw std::runtime_error("failed to find supported format!");
+}
+
+void Hellion::VulkanHelper::loadModel()
+{
+    tinyobj::attrib_t attrib;
+    std::vector<tinyobj::shape_t> shapes;
+    std::vector<tinyobj::material_t> materials;
+    std::string warn, err;
+
+    if(!tinyobj::LoadObj(&attrib, &shapes, &materials, &warn, &err, MODEL_PATH.c_str()))
+    {
+        throw std::runtime_error(warn + err);
+    }
+
+    std::unordered_map<Vertex, uint32_t> uniqueVertices{};
+
+    for(const auto& shape: shapes)
+    {
+        for(const auto& index: shape.mesh.indices)
+        {
+            Vertex vertex{};
+
+            vertex.pos = {
+                    attrib.vertices[3 * index.vertex_index + 0],
+                    attrib.vertices[3 * index.vertex_index + 1],
+                    attrib.vertices[3 * index.vertex_index + 2]
+            };
+
+            vertex.texCoord = {
+                    attrib.texcoords[2 * index.texcoord_index + 0],
+                    1.0f - attrib.texcoords[2 * index.texcoord_index + 1]
+            };
+
+            vertex.color = {1.0f, 1.0f, 1.0f};
+
+            if(uniqueVertices.count(vertex) == 0)
+            {
+                uniqueVertices[vertex] = static_cast<uint32_t>(vertices.size());
+                vertices.push_back(vertex);
+            }
+
+            indices.push_back(uniqueVertices[vertex]);
+        }
+    }
 }
 
