@@ -6,7 +6,9 @@
 #define HELLION_VULKANHELPER_H
 
 #define GLFW_INCLUDE_VULKAN
+#define GLM_FORCE_RADIANS
 #define GLM_FORCE_DEPTH_ZERO_TO_ONE
+#define GLM_ENABLE_EXPERIMENTAL
 
 #include <GLFW/glfw3.h>
 #include <vulkan/vulkan.hpp>
@@ -16,8 +18,12 @@
 #include <set>
 #include <limits>
 #include <fstream>
-#include <glm/glm.hpp>
 #include <vk_mem_alloc.h>
+#include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtx/hash.hpp>
+#include <unordered_map>
+#include "imgui.h"
 
 namespace Hellion
 {
@@ -57,6 +63,10 @@ namespace Hellion
             attributeDescriptions[2].offset = offsetof(Vertex, texCoord);
 
             return attributeDescriptions;
+        }
+
+        bool operator==(const Vertex& other) const {
+            return pos == other.pos && color == other.color && texCoord == other.texCoord;
         }
     };
 
@@ -134,7 +144,7 @@ namespace Hellion
         vk::PipelineLayout pipelineLayout;
         vk::Pipeline graphicsPipeline;
 
-        VkCommandPool commandPool;
+        vk::CommandPool commandPool;
         std::vector<vk::CommandBuffer, std::allocator<vk::CommandBuffer>> commandBuffers;
 
         std::vector<vk::Semaphore> imageAvailableSemaphores;
@@ -150,23 +160,13 @@ namespace Hellion
                 VK_KHR_SWAPCHAIN_EXTENSION_NAME
         };
 
+        const std::string MODEL_PATH = "../Data/Models/viking_room.obj";
+
+        const std::string TEXTURE_PATH = "../Data/Textures/viking_room.png";
+
         //geometry
-        const std::vector<Vertex> vertices = {
-                {{-0.5f, -0.5f, 0.0f}, {1.0f, 0.0f, 0.0f}, {1.0f, 0.0f}},
-                {{0.5f, -0.5f, 0.0f}, {0.0f, 1.0f, 0.0f}, {0.0f, 0.0f}},
-                {{0.5f, 0.5f, 0.0f}, {0.0f, 0.0f, 1.0f}, {0.0f, 1.0f}},
-                {{-0.5f, 0.5f, 0.0f}, {1.0f, 1.0f, 1.0f}, {1.0f, 1.0f}},
-
-                {{-0.5f, -0.5f, -0.5f}, {1.0f, 0.0f, 0.0f}, {1.0f, 0.0f}},
-                {{0.5f, -0.5f, -0.5f}, {0.0f, 1.0f, 0.0f}, {0.0f, 0.0f}},
-                {{0.5f, 0.5f, -0.5f}, {0.0f, 0.0f, 1.0f}, {0.0f, 1.0f}},
-                {{-0.5f, 0.5f, -0.5f}, {1.0f, 1.0f, 1.0f}, {1.0f, 1.0f}}
-        };
-
-        const std::vector<uint16_t> indices = {
-                0, 1, 2, 2, 3, 0,
-                4, 5, 6, 6, 7, 4
-        };
+        std::vector<Vertex> vertices;
+        std::vector<uint32_t> indices;
 
         static constexpr uint32_t GetVulkanApiVersion()
         {
@@ -233,7 +233,7 @@ namespace Hellion
 
         void init(GLFWwindow* window);
 
-        void drawFrame(GLFWwindow* window);
+        void drawFrame(GLFWwindow* window, ImDrawData* draw_data);
 
         void wait()
         {
@@ -312,7 +312,7 @@ namespace Hellion
 
         void createDescriptorSets();
 
-        void recordCommandBuffer(vk::CommandBuffer& buffer, uint32_t imageIndex);
+        void recordCommandBuffer(vk::CommandBuffer& buffer, uint32_t imageIndex, ImDrawData* draw_data);
 
         void createTextureImage();
 
@@ -337,6 +337,17 @@ namespace Hellion
         vk::Format findDepthFormat();
 
         vk::Format findSupportedFormat(const std::vector<vk::Format>& candidates, vk::ImageTiling tiling, vk::FormatFeatureFlags features);
+
+        void loadModel();
     };
 }
+
+namespace std {
+    template<> struct hash<Hellion::Vertex> {
+        size_t operator()(Hellion::Vertex const& vertex) const {
+            return ((hash<glm::vec3>()(vertex.pos) ^ (hash<glm::vec3>()(vertex.color) << 1)) >> 1) ^ (hash<glm::vec2>()(vertex.texCoord) << 1);
+        }
+    };
+}
+
 #endif //HELLION_VULKANHELPER_H
