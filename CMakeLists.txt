@@ -52,11 +52,28 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(VulkanMemoryAllocator)
 
+
+FetchContent_Declare(
+        tinyobjloader
+        GIT_REPOSITORY https://github.com/tinyobjloader/tinyobjloader.git
+        GIT_TAG origin/release
+)
+FetchContent_MakeAvailable(tinyobjloader)
+
+FetchContent_Declare(
+        imgui
+        GIT_REPOSITORY https://github.com/ocornut/imgui.git
+        GIT_TAG v1.89.4
+)
+FetchContent_MakeAvailable(imgui)
+
 file(GLOB CORE_SRC RELATIVE "${CMAKE_SOURCE_DIR}/" "src/*.cpp")
 file(GLOB VULKAN_WRAPPER RELATIVE "${CMAKE_SOURCE_DIR}/" "src/vulkan/*.cpp")
-
+file(GLOB IMGUI_SRC RELATIVE "${CMAKE_SOURCE_DIR}/" "${imgui_SOURCE_DIR}/*.cpp")
+set(IMGUI_VULKAN_BACKEND ${imgui_SOURCE_DIR}/backends/imgui_impl_vulkan.cpp ${imgui_SOURCE_DIR}/backends/imgui_impl_glfw.cpp)
 add_subdirectory(lib/stb)
 
-add_executable(Hellion main.cpp ${CORE_SRC} ${VULKAN_WRAPPER})
+add_executable(Hellion main.cpp ${CORE_SRC} ${VULKAN_WRAPPER} ${IMGUI_SRC} ${IMGUI_VULKAN_BACKEND})
 message(STATUS ${Vulkan_FOUND})
-target_link_libraries(Hellion PUBLIC nlohmann_json::nlohmann_json glm::glm glfw Vulkan::Vulkan range-v3::range-v3 fmt::fmt VulkanMemoryAllocator STB)
+target_link_libraries(Hellion PUBLIC nlohmann_json::nlohmann_json glm::glm glfw Vulkan::Vulkan range-v3::range-v3 fmt::fmt VulkanMemoryAllocator STB tinyobjloader)
+target_include_directories(Hellion PUBLIC ${imgui_SOURCE_DIR} ${imgui_SOURCE_DIR}/backends)
