@@ -1,14 +1,11 @@
 name: Windows
 
 on:
-  push:
-    branches: [ "master" ]
-  pull_request:
-    branches: [ "master" ]
-    
+  on: [push, pull_request]
+  
 env:
   BUILD_TYPE: Release
-  
+
 jobs:
   build:
     runs-on: windows-latest
