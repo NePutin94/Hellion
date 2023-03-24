@@ -347,7 +347,7 @@ void Hellion::VulkanHelper::createLogicalDevice()
     {
         device = physicalDevice.createDevice(createInfo);
     }
-    catch (vk::SystemError err)
+    catch (vk::SystemError& err)
     {
         throw std::runtime_error("failed to create logical device!");
     }
@@ -410,7 +410,7 @@ void Hellion::VulkanHelper::createSwapChain(GLFWwindow* window)
     {
         swapChain = device.createSwapchainKHR(createInfo);
     }
-    catch (vk::SystemError err)
+    catch (vk::SystemError& err)
     {
         throw std::runtime_error("failed to create swap chain!");
     }
@@ -508,7 +508,7 @@ void Hellion::VulkanHelper::createImageViews()
         {
             swapChainImageViews[i] = device.createImageView(createInfo);
         }
-        catch (vk::SystemError err)
+        catch (vk::SystemError& err)
         {
             throw std::runtime_error("failed to create image views!");
         }
@@ -607,7 +607,7 @@ void Hellion::VulkanHelper::createGraphicsPipeline()
     try
     {
         pipelineLayout = device.createPipelineLayout(pipelineLayoutInfo);
-    } catch (vk::SystemError err)
+    } catch (vk::SystemError& err)
     {
         throw std::runtime_error("failed to create pipeline layout!");
     }
@@ -632,7 +632,7 @@ void Hellion::VulkanHelper::createGraphicsPipeline()
     {
         graphicsPipeline = device.createGraphicsPipeline(nullptr, pipelineInfo).value;
     }
-    catch (vk::SystemError err)
+    catch (vk::SystemError& err)
     {
         throw std::runtime_error("failed to create graphics pipeline!");
     }
@@ -643,7 +643,7 @@ vk::UniqueShaderModule Hellion::VulkanHelper::createShaderModule(const std::vect
     try
     {
         return device.createShaderModuleUnique({vk::ShaderModuleCreateFlags(), code.size(), reinterpret_cast<const uint32_t*>(code.data())});
-    } catch (vk::SystemError err)
+    } catch (vk::SystemError& err)
     {
         throw std::runtime_error("failed to create shader module!");
     }
@@ -705,7 +705,7 @@ void Hellion::VulkanHelper::createRenderPass()
     try
     {
         renderPass = device.createRenderPass(renderPassInfo);
-    } catch (vk::SystemError err)
+    } catch (vk::SystemError& err)
     {
         throw std::runtime_error("failed to create render pass!");
     }
@@ -733,7 +733,7 @@ void Hellion::VulkanHelper::createFramebuffers()
         try
         {
             swapChainFramebuffers[i] = device.createFramebuffer(framebufferInfo);
-        } catch (vk::SystemError err)
+        } catch (vk::SystemError& err)
         {
             throw std::runtime_error("failed to create framebuffer!");
         }
@@ -752,7 +752,7 @@ void Hellion::VulkanHelper::createCommandPool()
     {
         commandPool = device.createCommandPool(poolInfo);
     }
-    catch (vk::SystemError err)
+    catch (vk::SystemError& err)
     {
         throw std::runtime_error("failed to create command pool!");
     }
@@ -770,7 +770,7 @@ void Hellion::VulkanHelper::createCommandBuffers()
     try
     {
         commandBuffers = device.allocateCommandBuffers(allocInfo);
-    } catch (vk::SystemError err)
+    } catch (vk::SystemError& err)
     {
         throw std::runtime_error("failed to allocate command buffers!");
     }
@@ -844,7 +844,7 @@ void Hellion::VulkanHelper::createSyncObjects()
             renderFinishedSemaphores[i] = device.createSemaphore({});
             inFlightFences[i] = device.createFence(fenceInfo);
         }
-    } catch (vk::SystemError err)
+    } catch (vk::SystemError& err)
     {
         throw std::runtime_error("failed to create synchronization objects for a frame!");
     }
@@ -860,11 +860,11 @@ void Hellion::VulkanHelper::drawFrame(GLFWwindow* window, ImDrawData* draw_data)
         vk::ResultValue result = device.acquireNextImageKHR(swapChain, std::numeric_limits<uint64_t>::max(),
                                                             imageAvailableSemaphores[currentFrame], nullptr);
         imageIndex = result.value;
-    } catch (vk::OutOfDateKHRError err)
+    } catch (vk::OutOfDateKHRError& err)
     {
         recreateSwapChain(window);
         return;
-    } catch (vk::SystemError err)
+    } catch (vk::SystemError& err)
     {
         throw std::runtime_error("failed to acquire swap chain image!");
     }
@@ -893,7 +893,7 @@ void Hellion::VulkanHelper::drawFrame(GLFWwindow* window, ImDrawData* draw_data)
     try
     {
         graphicsQueue.submit(submitInfo, inFlightFences[currentFrame]);
-    } catch (vk::SystemError err)
+    } catch (vk::SystemError& err)
     {
         throw std::runtime_error("failed to submit draw command buffer!");
     }
@@ -911,10 +911,10 @@ void Hellion::VulkanHelper::drawFrame(GLFWwindow* window, ImDrawData* draw_data)
     try
     {
         resultPresent = presentQueue.presentKHR(presentInfo);
-    } catch (vk::OutOfDateKHRError err)
+    } catch (vk::OutOfDateKHRError& err)
     {
         resultPresent = vk::Result::eErrorOutOfDateKHR;
-    } catch (vk::SystemError err)
+    } catch (vk::SystemError& err)
     {
         throw std::runtime_error("failed to present swap chain image!");
     }
@@ -1204,7 +1204,7 @@ void Hellion::VulkanHelper::recordCommandBuffer(vk::CommandBuffer& buffer, uint3
     {
         buffer.begin(beginInfo);
     }
-    catch (vk::SystemError err)
+    catch (vk::SystemError& err)
     {
         throw std::runtime_error("failed to begin recording command buffer!");
     }
@@ -1260,7 +1260,7 @@ void Hellion::VulkanHelper::recordCommandBuffer(vk::CommandBuffer& buffer, uint3
     try
     {
         buffer.end();
-    } catch (vk::SystemError err)
+    } catch (vk::SystemError& err)
     {
         throw std::runtime_error("failed to record command buffer!");
     }

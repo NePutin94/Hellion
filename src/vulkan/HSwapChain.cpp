@@ -86,7 +86,7 @@ vk::PresentModeKHR Hellion::HSwapChain::chooseSwapPresentMode(const std::vector<
     return bestMode;
 }
 
-vk::Extent2D Hellion::HSwapChain::chooseSwapExtent(const VkSurfaceCapabilitiesKHR& capabilities)
+vk::Extent2D Hellion::HSwapChain::chooseSwapExtent(const vk::SurfaceCapabilitiesKHR& capabilities)
 {
     if(capabilities.currentExtent.width != std::numeric_limits<uint32_t>::max())
     {

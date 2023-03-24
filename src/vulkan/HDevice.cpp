@@ -266,7 +266,7 @@ void Hellion::HDevice::createLogicalDevice()
     {
         device = physicalDevice.createDevice(createInfo);
     }
-    catch (vk::SystemError err)
+    catch (vk::SystemError& err)
     {
         throw std::runtime_error("failed to create logical device!");
     }
@@ -396,7 +396,6 @@ void Hellion::HDevice::transitionImageLayout(vk::Image image, vk::Format format,
     barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
     barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
     barrier.image = image;
-    barrier.subresourceRange.aspectMask = vk::ImageAspectFlagBits::eColor;
     barrier.subresourceRange.baseMipLevel = 0;
     barrier.subresourceRange.levelCount = mipLevels;
     barrier.subresourceRange.baseArrayLayer = 0;
@@ -469,7 +468,6 @@ Hellion::HDevice::createImageView(vk::Image& image, vk::Format format, vk::Image
 {
     vk::ImageViewCreateInfo viewInfo{};
     viewInfo.image = image;
-    viewInfo.viewType = vk::ImageViewType::e2D;
     viewInfo.format = format;
     viewInfo.viewType = viewType;
     viewInfo.subresourceRange.aspectMask = aspectFlags;

@@ -81,7 +81,7 @@ namespace Hellion
 
         vk::PresentModeKHR chooseSwapPresentMode(const std::vector<vk::PresentModeKHR>& availablePresentModes);
 
-        vk::Extent2D chooseSwapExtent(const VkSurfaceCapabilitiesKHR& capabilities);
+        vk::Extent2D chooseSwapExtent(const vk::SurfaceCapabilitiesKHR& capabilities);
 
         void createSwapChain();
 
