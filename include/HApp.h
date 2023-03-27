@@ -7,6 +7,8 @@
 
 #include "vulkan/HPipeline.h"
 #include "vulkan/HDescriptorSetLayout.h"
+#include "vulkan/HBuffer.h"
+#include "vulkan/HRenderer.h"
 
 namespace Hellion
 {
@@ -34,6 +36,18 @@ namespace Hellion
     private:
         void createGraphicsPipeline()
         {
+            std::vector<std::unique_ptr<HBuffer>> uboBuffers(HSwapChain::MAX_FRAMES_IN_FLIGHT);
+
+            for (int i = 0; i < uboBuffers.size(); i++) {
+                uboBuffers[i] = std::make_unique<HBuffer>(
+                        device,
+                        sizeof(UniformBufferObject),
+                        vk::BufferUsageFlagBits::eUniformBuffer,
+                        VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT |
+                        VMA_ALLOCATION_CREATE_MAPPED_BIT);
+                uboBuffers[i]->map();
+            }
+
             auto globalPool =
                     HDescriptorPool::Builder(device)
                             .setMaxSets(HSwapChain::MAX_FRAMES_IN_FLIGHT)
@@ -48,6 +62,14 @@ namespace Hellion
                             .build();
 
 
+            std::vector<vk::DescriptorSet> globalDescriptorSets(HSwapChain::MAX_FRAMES_IN_FLIGHT);
+            for (int i = 0; i < globalDescriptorSets.size(); i++) {
+                auto bufferInfo = uboBuffers[i]->descriptorInfo();
+                HDescriptorWriter(*globalSetLayout, *globalPool)
+                        .writeBuffer(0, &bufferInfo)
+                        .build(globalDescriptorSets[i]);
+            }
+
             std::vector<vk::DescriptorSetLayout> descriptorSetLayouts{globalSetLayout->getDescriptorSetLayout()};
 
             vk::PipelineLayoutCreateInfo pipelineLayoutInfo{};
@@ -57,32 +79,47 @@ namespace Hellion
             pipelineLayoutInfo.pPushConstantRanges = nullptr;
 
             pipelineLayout = device.createPipelineLayout(pipelineLayoutInfo);
-            auto configInfo = PipeConf::createDefault2(swapChain);
+            auto configInfo = PipeConf::createDefault2(*renderer.getSwapChain());
             configInfo.pipelineLayout = pipelineLayout;
-            configInfo.renderPass = swapChain.getRenderPass();
+            configInfo.renderPass = renderer.getSwapChainRenderPass();
 
             pipeline =
                     std::make_unique<HPipeline>(device, std::array<HShader, 2>{HShader("../Data/Shaders/vert.spv"), HShader("../Data/Shaders/frag.spv")},
                                                 std::move(configInfo));
         }
 
-        void createCommandBuffers()
+        void drawFrame()
         {
+            while(true)
+            {
+                if(auto commandBuffer = renderer.beginFrame())
+                {
+                    int frameIndex = renderer.getFrameIndex();
+                    renderer.beginSwapChainRenderPass(commandBuffer);
 
+
+                    renderer.endSwapChainRenderPass(commandBuffer);
+                    renderer.endFrame();
+                }
+            }
         }
-
-//        void drawFrame()
-//        {
-//            uint32_t imageIndex = swapChain_.acquireNextImage();
-//            swapChain_.submitCommandBuffers(commandBuffers_[imageIndex], imageIndex);
-//        }
 
         HWindow window{WIDTH, HEIGHT, "Hello Vulkan!"};
         HDevice device{window};
-        HSwapChain swapChain{window, device};
+        HRenderer renderer{window, device};
+        //HSwapChain swapChain{window, device};
 
         vk::PipelineLayout pipelineLayout;
         std::unique_ptr<HPipeline> pipeline;
+        struct UniformBufferObject
+        {
+            alignas(16) glm::mat4 model;
+            alignas(16) glm::mat4 view;
+            alignas(16) glm::mat4 proj;
+            alignas(16) float time;
+        };
+
+        std::vector<HBuffer> uniformBuffers;
     };
 
 } // Hellion

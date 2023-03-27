@@ -15,7 +15,11 @@ namespace Hellion
     {
     private:
         vk::Format swapChainImageFormat;
+        vk::Format swapChainDepthFormat;
         vk::Extent2D swapChainExtent;
+        vk::Extent2D windowExtent;
+
+        std::shared_ptr<HSwapChain> oldSwapChain;
 
         std::vector<vk::Framebuffer> swapChainFramebuffers;
         vk::RenderPass renderPass;
@@ -27,7 +31,6 @@ namespace Hellion
         std::vector<vk::Image> swapChainImages;
         std::vector<vk::ImageView> swapChainImageViews;
 
-        HWindow& window;
         HDevice& device;
 
         VkSwapchainKHR swapChain;
@@ -39,8 +42,15 @@ namespace Hellion
     public:
         static constexpr int MAX_FRAMES_IN_FLIGHT = 2;
     public:
-        HSwapChain(HWindow& window, HDevice& device) : window{window}, device{device}
+        HSwapChain(HDevice& deviceRef, vk::Extent2D windowExtent) : device{deviceRef}, windowExtent{windowExtent}
         { init(); }
+
+        HSwapChain(HDevice& deviceRef, vk::Extent2D extent, std::shared_ptr<HSwapChain> previous) : device{deviceRef}, windowExtent{extent},
+                                                                                                    oldSwapChain{previous}
+        {
+            init();
+            oldSwapChain = nullptr;
+        }
 
         HSwapChain(const HSwapChain&) = delete;
 
@@ -72,9 +82,18 @@ namespace Hellion
         size_t imageCount()
         { return swapChainImages.size(); }
 
+        float extentAspectRatio()
+        { return static_cast<float>(swapChainExtent.width) / static_cast<float>(swapChainExtent.height); }
+
         uint32_t acquireNextImage();
 
         vk::Result submitCommandBuffers(const vk::CommandBuffer& commandBuffers, uint32_t imageIndex);
+
+        bool compareSwapFormats(const HSwapChain& swapChain) const
+        {
+            return swapChain.swapChainDepthFormat == swapChainDepthFormat &&
+                   swapChain.swapChainImageFormat == swapChainImageFormat;
+        }
 
     private:
         vk::SurfaceFormatKHR chooseSwapSurfaceFormat(const std::vector<vk::SurfaceFormatKHR>& availableFormats);

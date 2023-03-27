@@ -73,7 +73,7 @@ namespace Hellion
             return vk::DescriptorBufferInfo{
                     buffer,
                     offset,
-                    size,
+                    size
             };
         }
 

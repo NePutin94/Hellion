@@ -1252,7 +1252,6 @@ void Hellion::VulkanHelper::recordCommandBuffer(vk::CommandBuffer& buffer, uint3
 
     buffer.drawIndexed(static_cast<uint32_t>(indices.size()), 1, 0, 0, 0);
 
-
     ImGui_ImplVulkan_RenderDrawData(draw_data, buffer);
 
     buffer.endRenderPass();
