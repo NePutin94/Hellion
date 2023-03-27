@@ -8,6 +8,7 @@
 #include <vulkan/vulkan.hpp>
 #include "HWindow.h"
 #include "HDevice.h"
+#include <memory>
 
 namespace Hellion
 {
@@ -85,7 +86,7 @@ namespace Hellion
         float extentAspectRatio()
         { return static_cast<float>(swapChainExtent.width) / static_cast<float>(swapChainExtent.height); }
 
-        uint32_t acquireNextImage();
+        vk::ResultValue<uint32_t> acquireNextImage();
 
         vk::Result submitCommandBuffers(const vk::CommandBuffer& commandBuffers, uint32_t imageIndex);
 

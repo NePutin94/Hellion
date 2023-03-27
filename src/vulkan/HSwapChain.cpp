@@ -325,13 +325,13 @@ void Hellion::HSwapChain::createSyncObjects()
     }
 }
 
-uint32_t Hellion::HSwapChain::acquireNextImage()
+vk::ResultValue<uint32_t> Hellion::HSwapChain::acquireNextImage()
 {
     device.getDevice().waitForFences(1, &inFlightFences[currentFrame], VK_TRUE, std::numeric_limits<uint64_t>::max());
 
     vk::ResultValue result = device.getDevice().acquireNextImageKHR(swapChain, std::numeric_limits<uint64_t>::max(),
                                                                     imageAvailableSemaphores[currentFrame], nullptr);
-    return result.value;
+    return result;
 }
 
 void Hellion::HSwapChain::init()

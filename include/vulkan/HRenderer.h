@@ -16,9 +16,16 @@ namespace Hellion
     class HRenderer
     {
     public:
-        HRenderer(HWindow& window, HDevice& device);
+        HRenderer(HWindow& window, HDevice& device) : window{window}, device{device}
+        {
+                recreateSwapChain();
+                createCommandBuffers();
+        }
 
-        ~HRenderer();
+        ~HRenderer()
+        {
+            freeCommandBuffers();
+        }
 
         HRenderer(const HRenderer&) = delete;
 
@@ -53,13 +60,14 @@ namespace Hellion
             assert(!isFrameStarted && "Can't call beginFrame while already in progress");
 
             auto result = swapChain->acquireNextImage();
-            if(result == VK_ERROR_OUT_OF_DATE_KHR)
+            currentImageIndex = result.value;
+            if(result.result == vk::Result::eErrorOutOfDateKHR)
             {
                 recreateSwapChain();
                 return nullptr;
             }
 
-            if(result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR)
+            if(result.result !=  vk::Result::eSuccess && result.result !=  vk::Result::eSuboptimalKHR)
             {
                 throw std::runtime_error("failed to acquire swap chain image!");
             }
