@@ -8,6 +8,7 @@
 #include <vulkan/vulkan.hpp>
 #include "HDevice.h"
 #include "HBuffer.h"
+#include <memory>
 
 namespace Hellion
 {

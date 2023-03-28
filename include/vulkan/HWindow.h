@@ -37,6 +37,8 @@ namespace Hellion
 
         void createWindowSurface(vk::Instance instance, vk::SurfaceKHR* surface);
 
+        bool shouldClose() { return glfwWindowShouldClose(window); }
+
         int getWidth() const
         { return width; }
 

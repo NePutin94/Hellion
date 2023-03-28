@@ -11,6 +11,7 @@
 #include "HBuffer.h"
 #include "tiny_obj_loader.h"
 #include "HTexture.h"
+#include <chrono>
 
 namespace Hellion
 {
@@ -25,6 +26,7 @@ namespace Hellion
             createPipeline(renderPass, swapchain);
             loadModel();
             createVertexBufferVma();
+            createIndexBufferVma();
         }
 
         ~RenderSystem()
@@ -36,23 +38,37 @@ namespace Hellion
 
         RenderSystem& operator=(const RenderSystem&) = delete;
 
-        void renderGameObjects(vk::CommandBuffer& buffer)
+        void draw(vk::CommandBuffer& buffer, uint32_t currentFrame)
         {
-//            pipeline->bind(buffer);
-//
-//            buffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, pipelineLayout, 0, 1, &descriptorSets[currentFrame], 0, nullptr);
-//
-//            vk::Buffer vertexBuffers[] = {vertexBuffer};
-//
-//            vk::DeviceSize offsets[] = {0};
-//
-//            buffer.bindVertexBuffers(0, 1, vertexBuffers, offsets);
-//
-//            buffer.bindIndexBuffer(indexBuffer, 0, vk::IndexType::eUint32);
-//
-//            buffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, pipelineLayout, 0, 1, &descriptorSets[currentFrame], 0, nullptr);
-//
-//            buffer.drawIndexed(static_cast<uint32_t>(indices.size()), 1, 0, 0, 0);
+            pipeline->bind(buffer);
+
+            buffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, pipelineLayout, 0, 1, &globalDescriptorSets[currentFrame], 0, nullptr);
+
+            vk::Buffer vertexBuffers[] = {vertexBuffer->getBuffer()};
+
+            vk::DeviceSize offsets[] = {0};
+
+            buffer.bindVertexBuffers(0, 1, vertexBuffers, offsets);
+
+            buffer.bindIndexBuffer(indexBuffer->getBuffer(), 0, vk::IndexType::eUint32);
+
+            buffer.drawIndexed(static_cast<uint32_t>(indices.size()), 1, 0, 0, 0);
+        }
+
+        void updateBuffers(uint32_t currentFrame, float width,float height)
+        {
+            static auto startTime = std::chrono::high_resolution_clock::now();
+
+            auto currentTime = std::chrono::high_resolution_clock::now();
+            float time = std::chrono::duration<float, std::chrono::seconds::period>(currentTime - startTime).count();
+
+            UniformBufferObject ubo{};
+            ubo.model = glm::rotate(glm::mat4(1.0f), time * glm::radians(90.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+            ubo.view = glm::lookAt(glm::vec3(2.0f, 2.0f, 2.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+            ubo.proj = glm::perspective(glm::radians(45.0f), width / (float) height, 0.1f, 10.0f);
+            ubo.proj[1][1] *= -1;
+            ubo.time = time * 15;
+            memcpy(uboBuffers[currentFrame]->getMappedMemory(), &ubo, sizeof(ubo));
         }
 
     private:
@@ -78,7 +94,14 @@ namespace Hellion
 
         void createIndexBufferVma()
         {
+            vk::DeviceSize bufferSize = sizeof(indices[0]) * indices.size();
+            auto stagingBuffer = HBuffer(device, bufferSize, vk::BufferUsageFlagBits::eTransferSrc, VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT |
+                                                                                                    VMA_ALLOCATION_CREATE_MAPPED_BIT);
 
+            memcpy(stagingBuffer.getMappedMemory(), indices.data(), (size_t) bufferSize);
+            indexBuffer = std::make_unique<HBuffer>(device, bufferSize, vk::BufferUsageFlagBits::eTransferDst | vk::BufferUsageFlagBits::eIndexBuffer, 0);
+
+            device.copyBuffer(stagingBuffer.getBuffer(), indexBuffer->getBuffer(), bufferSize);
         }
 
         void createPipelineLayout()
@@ -91,7 +114,8 @@ namespace Hellion
                             .addPoolSize(vk::DescriptorType::eUniformBuffer, HSwapChain::MAX_FRAMES_IN_FLIGHT)
                             .addPoolSize(vk::DescriptorType::eCombinedImageSampler, HSwapChain::MAX_FRAMES_IN_FLIGHT)
                             .build();
-            std::vector<std::unique_ptr<HBuffer>> uboBuffers(HSwapChain::MAX_FRAMES_IN_FLIGHT);
+
+            uboBuffers.resize(HSwapChain::MAX_FRAMES_IN_FLIGHT);
 
             for(int i = 0; i < uboBuffers.size(); i++)
             {
@@ -109,7 +133,7 @@ namespace Hellion
                             .addBinding(1, vk::DescriptorType::eCombinedImageSampler, vk::ShaderStageFlagBits::eFragment)
                             .build();
 
-            std::vector<vk::DescriptorSet> globalDescriptorSets(HSwapChain::MAX_FRAMES_IN_FLIGHT);
+            globalDescriptorSets.resize(HSwapChain::MAX_FRAMES_IN_FLIGHT);
             for(int i = 0; i < globalDescriptorSets.size(); i++)
             {
                 auto imageInfo = texture->getImageInfo();
@@ -192,10 +216,13 @@ namespace Hellion
 
         std::unique_ptr<HTexture> texture;
 
+        std::vector<std::unique_ptr<HBuffer>> uboBuffers;
+
         std::vector<Vertex> vertices;
         std::vector<uint32_t> indices;
         std::unique_ptr<HBuffer> vertexBuffer;
-
+        std::unique_ptr<HBuffer> indexBuffer;
+        std::vector<vk::DescriptorSet> globalDescriptorSets;
         std::unique_ptr<HDescriptorSetLayout> renderSystemLayout;
     };
 

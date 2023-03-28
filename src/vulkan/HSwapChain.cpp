@@ -22,6 +22,8 @@ vk::Result Hellion::HSwapChain::submitCommandBuffers(const vk::CommandBuffer& co
     submitInfo.signalSemaphoreCount = 1;
     submitInfo.pSignalSemaphores = signalSemaphores;
 
+    device.getDevice().resetFences(1, &inFlightFences[currentFrame]);
+
     device.getGraphicsQueue().submit(submitInfo, inFlightFences[currentFrame]);
 
     vk::PresentInfoKHR presentInfo = {};

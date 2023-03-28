@@ -18,35 +18,25 @@ namespace Hellion
     {
     public:
         HApp()
-        {
-            createGraphicsPipeline();
-        }
+        {}
 
         ~HApp()
         {
-
         }
 
         void run()
-        {}
-
-        static constexpr int WIDTH = 800;
-        static constexpr int HEIGHT = 600;
-
-    private:
-        void createGraphicsPipeline()
         {
-        }
-
-        void drawFrame()
-        {
-            while(true)
+            while(!window.shouldClose())
             {
+                glfwPollEvents();
                 if(auto commandBuffer = renderer.beginFrame())
                 {
                     int frameIndex = renderer.getFrameIndex();
                     renderer.beginSwapChainRenderPass(commandBuffer);
 
+                    auto exte = renderer.getSwapChain()->getSwapChainExtent();
+                    renderSystem.updateBuffers(renderer.getFrameIndex(), exte.width, exte.height);
+                    renderSystem.draw(commandBuffer, renderer.getFrameIndex());
 
                     renderer.endSwapChainRenderPass(commandBuffer);
                     renderer.endFrame();
@@ -54,6 +44,10 @@ namespace Hellion
             }
         }
 
+        static constexpr int WIDTH = 800;
+        static constexpr int HEIGHT = 600;
+
+    private:
         HWindow window{WIDTH, HEIGHT, "Hello Vulkan!"};
         HDevice device{window};
         HRenderer renderer{window, device};
