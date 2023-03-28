@@ -5,7 +5,6 @@
 #ifndef HELLION_IMGUIRENDER_H
 #define HELLION_IMGUIRENDER_H
 
-#include "RendererBase.h"
 #include "HTexture.h"
 #include "imgui.h"
 #include "imgui_impl_vulkan.h"

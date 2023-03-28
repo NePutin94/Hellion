@@ -67,7 +67,7 @@ namespace Hellion
 
         HDescriptorSetLayout& operator=(const HDescriptorSetLayout&) = delete;
 
-        vk::DescriptorSetLayout getDescriptorSetLayout() const
+        vk::DescriptorSetLayout& getDescriptorSetLayout()
         { return descriptorSetLayout; }
 
     private:
@@ -160,7 +160,10 @@ namespace Hellion
             device.getDevice().freeDescriptorSets(descriptorPool, descriptors);
         }
 
-        void resetPool();
+        void resetPool()
+        {
+            device.getDevice().resetDescriptorPool(descriptorPool);
+        }
 
         HDevice& device;
     private:
@@ -182,9 +185,7 @@ namespace Hellion
 
             auto& bindingDescription = setLayout.bindings[binding];
 
-            assert(
-                    bindingDescription.descriptorCount == 1 &&
-                    "Binding single descriptor info, but binding expects multiple");
+            assert(bindingDescription.descriptorCount == 1 && "Binding single descriptor info, but binding expects multiple");
 
             vk::WriteDescriptorSet write{};
             write.descriptorType = bindingDescription.descriptorType;
@@ -202,9 +203,7 @@ namespace Hellion
 
             auto& bindingDescription = setLayout.bindings[binding];
 
-            assert(
-                    bindingDescription.descriptorCount == 1 &&
-                    "Binding single descriptor info, but binding expects multiple");
+            assert(bindingDescription.descriptorCount == 1 && "Binding single descriptor info, but binding expects multiple");
 
             vk::WriteDescriptorSet write{};
             write.descriptorType = bindingDescription.descriptorType;
@@ -220,9 +219,7 @@ namespace Hellion
         {
             bool success = pool.allocateDescriptor(setLayout.getDescriptorSetLayout(), set);
             if(!success)
-            {
                 return false;
-            }
             overwrite(set);
             return true;
         }
@@ -230,9 +227,7 @@ namespace Hellion
         void overwrite(vk::DescriptorSet& set)
         {
             for(auto& write: writes)
-            {
                 write.dstSet = set;
-            }
             pool.device.getDevice().updateDescriptorSets(writes, {});
         }
 

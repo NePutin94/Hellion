@@ -8,8 +8,6 @@
 
 #include <vk_mem_alloc.h>
 
-#define STB_IMAGE_IMPLEMENTATION
-
 #include <stb_image.h>
 
 #define TINYOBJLOADER_IMPLEMENTATION
@@ -1251,7 +1249,6 @@ void Hellion::VulkanHelper::recordCommandBuffer(vk::CommandBuffer& buffer, uint3
     buffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, pipelineLayout, 0, 1, &descriptorSets[currentFrame], 0, nullptr);
 
     buffer.drawIndexed(static_cast<uint32_t>(indices.size()), 1, 0, 0, 0);
-
 
     ImGui_ImplVulkan_RenderDrawData(draw_data, buffer);
 

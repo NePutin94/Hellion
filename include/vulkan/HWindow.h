@@ -37,36 +37,32 @@ namespace Hellion
 
         void createWindowSurface(vk::Instance instance, vk::SurfaceKHR* surface);
 
+        bool shouldClose() { return glfwWindowShouldClose(window); }
+
         int getWidth() const
-        {
-            return width;
-        }
+        { return width; }
 
         void setWidth(int _width)
-        {
-            width = _width;
-        }
+        { width = _width; }
 
         int getHeight() const
-        {
-            return height;
-        }
+        { return height; }
 
         void setHeight(int _height)
-        {
-            height = _height;
-        }
+        { height = _height; }
 
         GLFWwindow* getWindow() const
-        {
-            return window;
-        }
+        { return window; }
 
         void setWindow(GLFWwindow* _window)
-        {
-            window = _window;
-        }
+        { window = _window; }
 
+        bool wasWindowResized()
+        { return framebufferResized; }
+
+        void resetWindowResizedFlag() { framebufferResized = false; }
+
+        vk::Extent2D getExtent() { return {static_cast<uint32_t>(width), static_cast<uint32_t>(height)}; }
     private:
         void initWindow();
 

@@ -31,7 +31,8 @@ namespace Hellion
 
         ~HBuffer()
         {
-            unmap();
+           // unmap();
+            vmaDestroyBuffer(device.getAllocator(), buffer, allocation);
 //            vkDestroyBuffer(lveDevice.device(), buffer, nullptr);
 //            vkFreeMemory(lveDevice.device(), memory, nullptr);
         }
@@ -73,7 +74,7 @@ namespace Hellion
             return vk::DescriptorBufferInfo{
                     buffer,
                     offset,
-                    size,
+                    size
             };
         }
 
@@ -84,7 +85,7 @@ namespace Hellion
         { return buffer; }
 
         void* getMappedMemory() const
-        { return mapped; }
+        { return info.pMappedData; }
 
 
         vk::BufferUsageFlags getUsageFlags() const

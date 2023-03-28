@@ -22,6 +22,8 @@ vk::Result Hellion::HSwapChain::submitCommandBuffers(const vk::CommandBuffer& co
     submitInfo.signalSemaphoreCount = 1;
     submitInfo.pSignalSemaphores = signalSemaphores;
 
+    device.getDevice().resetFences(1, &inFlightFences[currentFrame]);
+
     device.getGraphicsQueue().submit(submitInfo, inFlightFences[currentFrame]);
 
     vk::PresentInfoKHR presentInfo = {};
@@ -88,15 +90,10 @@ vk::PresentModeKHR Hellion::HSwapChain::chooseSwapPresentMode(const std::vector<
 
 vk::Extent2D Hellion::HSwapChain::chooseSwapExtent(const vk::SurfaceCapabilitiesKHR& capabilities)
 {
-    if(capabilities.currentExtent.width != std::numeric_limits<uint32_t>::max())
-    {
+    if (capabilities.currentExtent.width != std::numeric_limits<uint32_t>::max()) {
         return capabilities.currentExtent;
-    } else
-    {
-        VkExtent2D actualExtent = {
-                static_cast<uint32_t>(window.getWidth()),
-                static_cast<uint32_t>(window.getHeight())};
-
+    } else {
+        vk::Extent2D actualExtent = windowExtent;
         actualExtent.width = std::max(
                 capabilities.minImageExtent.width,
                 std::min(capabilities.maxImageExtent.width, actualExtent.width));
@@ -149,7 +146,7 @@ void Hellion::HSwapChain::createSwapChain()
     createInfo.presentMode = presentMode;
     createInfo.clipped = VK_TRUE;
 
-    createInfo.oldSwapchain = vk::SwapchainKHR(nullptr);
+    createInfo.oldSwapchain = oldSwapChain == nullptr ? VK_NULL_HANDLE : oldSwapChain->swapChain;
 
     try
     {
@@ -260,7 +257,7 @@ void Hellion::HSwapChain::createRenderPass()
 void Hellion::HSwapChain::createDepthResources()
 {
     vk::Format depthFormat = findDepthFormat();
-
+    swapChainDepthFormat = depthFormat;
     depthImages.resize(imageCount());
     depthImageAllocs.resize(imageCount());
     depthImageViews.resize(imageCount());
@@ -330,13 +327,13 @@ void Hellion::HSwapChain::createSyncObjects()
     }
 }
 
-uint32_t Hellion::HSwapChain::acquireNextImage()
+vk::ResultValue<uint32_t> Hellion::HSwapChain::acquireNextImage()
 {
     device.getDevice().waitForFences(1, &inFlightFences[currentFrame], VK_TRUE, std::numeric_limits<uint64_t>::max());
 
     vk::ResultValue result = device.getDevice().acquireNextImageKHR(swapChain, std::numeric_limits<uint64_t>::max(),
                                                                     imageAvailableSemaphores[currentFrame], nullptr);
-    return result.value;
+    return result;
 }
 
 void Hellion::HSwapChain::init()
