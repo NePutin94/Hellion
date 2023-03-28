@@ -67,7 +67,7 @@ namespace Hellion
 
         HDescriptorSetLayout& operator=(const HDescriptorSetLayout&) = delete;
 
-        vk::DescriptorSetLayout getDescriptorSetLayout() const
+        vk::DescriptorSetLayout& getDescriptorSetLayout()
         { return descriptorSetLayout; }
 
     private:

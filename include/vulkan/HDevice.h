@@ -81,6 +81,9 @@ namespace Hellion
         vk::Device getDevice()
         { return device; }
 
+        vk::PhysicalDevice getPhysicalDevice()
+        { return physicalDevice; }
+
         vk::Queue getPresentQueue()
         { return presentQueue; }
 
@@ -143,6 +146,18 @@ namespace Hellion
         std::pair<vk::Image, VmaAllocation>
         createImage(uint32_t width, uint32_t height, uint32_t mipLevels, vk::Format format, vk::ImageTiling tiling, vk::ImageUsageFlags usage,
                     vk::ImageCreateFlags flags, uint32_t arrayLayers);
+
+        std::pair<vk::Image, VmaAllocation> createImageWithInfo(vk::ImageCreateInfo& imageInfo)
+        {
+            VmaAllocationCreateInfo allocCreateInfo = {};
+            allocCreateInfo.usage = VMA_MEMORY_USAGE_AUTO;
+            allocCreateInfo.flags = VMA_ALLOCATION_CREATE_DEDICATED_MEMORY_BIT;
+            allocCreateInfo.priority = 1.0f;
+            vk::Image img;
+            VmaAllocation alloc;
+            vmaCreateImage(g_hAllocator, reinterpret_cast<VkImageCreateInfo*>(&imageInfo), &allocCreateInfo, reinterpret_cast<VkImage*>(&img), &alloc, nullptr);
+            return {img, alloc};
+        }
 
         void transitionImageLayout(vk::Image image, vk::Format format, vk::ImageLayout oldLayout, vk::ImageLayout newLayout, uint32_t mipLevels,
                                    uint32_t layerCount);
