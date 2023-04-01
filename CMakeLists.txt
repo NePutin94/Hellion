@@ -72,14 +72,17 @@ FetchContent_Declare(
         GIT_REPOSITORY https://github.com/wolfpld/tracy.git
         GIT_TAG "v0.9"
 )
-set(TRACY_NO_VSYNC_CAPTURE ON)
+option(TRACY_NO_VSYNC_CAPTURE ON)
 FetchContent_MakeAvailable(tracy)
 
-file(GLOB CORE_SRC RELATIVE "${CMAKE_SOURCE_DIR}/" "src/*.cpp")
+file(GLOB_RECURSE CORE_SRC RELATIVE "${CMAKE_SOURCE_DIR}/" "src/*.cpp")
 file(GLOB VULKAN_WRAPPER RELATIVE "${CMAKE_SOURCE_DIR}/" "src/vulkan/*.cpp")
 file(GLOB IMGUI_SRC RELATIVE "${CMAKE_SOURCE_DIR}/" "${imgui_SOURCE_DIR}/*.cpp")
 set(IMGUI_VULKAN_BACKEND ${imgui_SOURCE_DIR}/backends/imgui_impl_vulkan.cpp ${imgui_SOURCE_DIR}/backends/imgui_impl_glfw.cpp)
 add_subdirectory(lib/stb)
+
+
+add_compile_definitions($<$<CONFIG:Debug>:HELLION_PROFILING>)
 
 add_executable(Hellion main.cpp ${CORE_SRC} ${VULKAN_WRAPPER} ${IMGUI_SRC} ${IMGUI_VULKAN_BACKEND})
 message(STATUS ${Vulkan_FOUND})
