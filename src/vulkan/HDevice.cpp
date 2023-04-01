@@ -287,6 +287,7 @@ void Hellion::HDevice::createVmaAllocator()
 
 void Hellion::HDevice::createCommandPool()
 {
+    HELION_ZONE_PROFILING()
     QueueFamilyIndices queueFamilyIndices = findQueueFamilies(physicalDevice);
 
     vk::CommandPoolCreateInfo poolInfo = {};
@@ -306,6 +307,7 @@ void Hellion::HDevice::createCommandPool()
 std::pair<VmaAllocation, VmaAllocationInfo>
 Hellion::HDevice::createBufferVma(vk::DeviceSize size, vk::BufferUsageFlags usage, vk::Buffer& buffer, VmaAllocationCreateFlags flags)
 {
+    HELION_ZONE_PROFILING()
     vk::BufferCreateInfo bufferInfo = {};
     bufferInfo.size = size;
     bufferInfo.usage = usage;
@@ -324,6 +326,7 @@ Hellion::HDevice::createBufferVma(vk::DeviceSize size, vk::BufferUsageFlags usag
 
 vk::CommandBuffer Hellion::HDevice::beginSingleTimeCommands()
 {
+    HELION_ZONE_PROFILING()
     vk::CommandBufferAllocateInfo allocInfo{};
     allocInfo.level = vk::CommandBufferLevel::ePrimary;
     allocInfo.commandPool = commandPool;
@@ -342,6 +345,7 @@ vk::CommandBuffer Hellion::HDevice::beginSingleTimeCommands()
 
 void Hellion::HDevice::endSingleTimeCommands(vk::CommandBuffer& commandBuffer)
 {
+    HELION_ZONE_PROFILING()
     commandBuffer.end();
 
     vk::SubmitInfo submitInfo{};
@@ -359,6 +363,7 @@ std::pair<vk::Image, VmaAllocation>
 Hellion::HDevice::createImage(uint32_t width, uint32_t height, uint32_t mipLevels, vk::Format format, vk::ImageTiling tiling, vk::ImageUsageFlags usage,
                               vk::ImageCreateFlags flags, uint32_t arrayLayers)
 {
+    HELION_ZONE_PROFILING()
     vk::ImageCreateInfo imageInfo{};
     imageInfo.imageType = vk::ImageType::e2D;
     imageInfo.extent.width = width;
@@ -388,6 +393,7 @@ Hellion::HDevice::createImage(uint32_t width, uint32_t height, uint32_t mipLevel
 void Hellion::HDevice::transitionImageLayout(vk::Image image, vk::Format format, vk::ImageLayout oldLayout, vk::ImageLayout newLayout, uint32_t mipLevels,
                                              uint32_t layerCount)
 {
+    HELION_ZONE_PROFILING()
     vk::CommandBuffer commandBuffer = beginSingleTimeCommands();
     vk::ImageMemoryBarrier barrier{};
     barrier.oldLayout = oldLayout;
@@ -406,7 +412,6 @@ void Hellion::HDevice::transitionImageLayout(vk::Image image, vk::Format format,
     if(newLayout == vk::ImageLayout::eDepthStencilAttachmentOptimal)
     {
         barrier.subresourceRange.aspectMask = vk::ImageAspectFlagBits::eDepth;
-
         if(hasStencilComponent(format))
             barrier.subresourceRange.aspectMask |= vk::ImageAspectFlagBits::eColor;
     } else
@@ -436,14 +441,13 @@ void Hellion::HDevice::transitionImageLayout(vk::Image image, vk::Format format,
     }
 
     commandBuffer.pipelineBarrier(sourceStage, destinationStage, vk::DependencyFlags(), nullptr, nullptr, barrier);
-
     endSingleTimeCommands(commandBuffer);
 }
 
 void Hellion::HDevice::copyBufferToImage(vk::Buffer buffer, vk::Image image, uint32_t width, uint32_t height)
 {
+    HELION_ZONE_PROFILING()
     vk::CommandBuffer commandBuffer = beginSingleTimeCommands();
-
     vk::BufferImageCopy region{};
     region.bufferOffset = 0;
     region.bufferRowLength = 0;
@@ -465,6 +469,7 @@ void Hellion::HDevice::copyBufferToImage(vk::Buffer buffer, vk::Image image, uin
 vk::ImageView
 Hellion::HDevice::createImageView(vk::Image& image, vk::Format format, vk::ImageAspectFlags aspectFlags, uint32_t mipLevels, vk::ImageViewType viewType)
 {
+    HELION_ZONE_PROFILING()
     vk::ImageViewCreateInfo viewInfo{};
     viewInfo.image = image;
     viewInfo.format = format;
@@ -498,6 +503,7 @@ vk::Format Hellion::HDevice::findSupportedFormat(const std::vector<vk::Format>& 
 
 void Hellion::HDevice::copyBuffer(vk::Buffer srcBuffer, vk::Buffer dstBuffer, vk::DeviceSize size)
 {
+    HELION_ZONE_PROFILING()
     vk::CommandBufferAllocateInfo allocInfo = {};
     allocInfo.level = vk::CommandBufferLevel::ePrimary;
     allocInfo.commandPool = commandPool;

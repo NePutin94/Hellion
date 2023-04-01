@@ -6,7 +6,7 @@
 
 vk::Result Hellion::HSwapChain::submitCommandBuffers(const vk::CommandBuffer& commandBuffers, uint32_t imageIndex)
 {
-
+    HELION_ZONE_PROFILING()
     vk::SubmitInfo submitInfo = {};
 
     vk::Semaphore waitSemaphores[] = {imageAvailableSemaphores[currentFrame]};
@@ -109,6 +109,7 @@ vk::Extent2D Hellion::HSwapChain::chooseSwapExtent(const vk::SurfaceCapabilities
 
 void Hellion::HSwapChain::createSwapChain()
 {
+    HELION_ZONE_PROFILING()
     SwapChainSupportDetails swapChainSupport = device.getSwapChainSupport();
 
     vk::SurfaceFormatKHR surfaceFormat = chooseSwapSurfaceFormat(swapChainSupport.formats);
@@ -167,6 +168,7 @@ void Hellion::HSwapChain::createSwapChain()
 
 void Hellion::HSwapChain::createImageViews()
 {
+    HELION_ZONE_PROFILING()
     swapChainImageViews.resize(swapChainImages.size());
     for(size_t i = 0; i < swapChainImages.size(); i++)
     {
@@ -196,6 +198,7 @@ vk::Format Hellion::HSwapChain::findDepthFormat()
 
 void Hellion::HSwapChain::createRenderPass()
 {
+    HELION_ZONE_PROFILING()
     vk::AttachmentDescription colorAttachment = {};
     colorAttachment.format = swapChainImageFormat;
     colorAttachment.samples = vk::SampleCountFlagBits::e1;
@@ -258,6 +261,7 @@ void Hellion::HSwapChain::createRenderPass()
 
 void Hellion::HSwapChain::createDepthResources()
 {
+    HELION_ZONE_PROFILING()
     vk::Format depthFormat = findDepthFormat();
     swapChainDepthFormat = depthFormat;
     depthImages.resize(imageCount());
@@ -277,6 +281,7 @@ void Hellion::HSwapChain::createDepthResources()
 
 void Hellion::HSwapChain::createFramebuffers()
 {
+    HELION_ZONE_PROFILING()
     swapChainFramebuffers.resize(swapChainImageViews.size());
 
     for(size_t i = 0; i < swapChainImageViews.size(); i++)
@@ -331,7 +336,7 @@ void Hellion::HSwapChain::createSyncObjects()
 
 vk::ResultValue<uint32_t> Hellion::HSwapChain::acquireNextImage()
 {
-
+    HELION_ZONE_PROFILING()
     device.getDevice().waitForFences(1, &inFlightFences[currentFrame], VK_TRUE, std::numeric_limits<uint64_t>::max());
 
     try

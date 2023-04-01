@@ -12,6 +12,7 @@
 #include <optional>
 #include <set>
 #include <vk_mem_alloc.h>
+#include "../core/Profiling.h"
 
 namespace Hellion
 {
@@ -168,7 +169,7 @@ namespace Hellion
         vk::Format findSupportedFormat(const std::vector<vk::Format>& candidates, vk::ImageTiling tiling, vk::FormatFeatureFlags features);
 
         vk::DispatchLoaderDynamic& getDldi()
-        {return dldi;}
+        { return dldi; }
 
     private:
         void init();
