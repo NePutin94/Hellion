@@ -42,6 +42,14 @@ namespace Hellion
             return viewportState;
         }
 
+        static vk::PipelineViewportStateCreateInfo viewportState()
+        {
+            vk::PipelineViewportStateCreateInfo viewportState = {};
+            viewportState.viewportCount = 1;
+            viewportState.scissorCount = 1;
+            return viewportState;
+        }
+
         static vk::PipelineRasterizationStateCreateInfo rasterizationState()
         {
             vk::PipelineRasterizationStateCreateInfo rasterizer = {};
@@ -159,6 +167,9 @@ namespace Hellion
         vk::RenderPass renderPass;
         vk::PipelineLayout pipelineLayout;
         uint32_t subpass = 0;
+        std::vector<vk::DynamicState> dynamicStateEnables;
+        vk::PipelineDynamicStateCreateInfo dynamicStateInfo;
+        vk::PipelineViewportStateCreateInfo viewportInfo;
 
         PipeConf() = default;
 
@@ -184,6 +195,11 @@ namespace Hellion
             configInfo.depthStencilInfo = HPipelineHelper::depthStencilState();
             configInfo.subpass = 0;
             configInfo.renderPass = swapChain.getRenderPass();
+            configInfo.dynamicStateEnables = {vk::DynamicState::eViewport, vk::DynamicState::eScissor};
+            configInfo.dynamicStateInfo.pDynamicStates = configInfo.dynamicStateEnables.data();
+            configInfo.dynamicStateInfo.dynamicStateCount =
+                    static_cast<uint32_t>(configInfo.dynamicStateEnables.size());
+            configInfo.viewportInfo = HPipelineHelper::viewportState();
             return configInfo;
         }
 
@@ -224,9 +240,15 @@ namespace Hellion
             configInfo.colorBlendInfo.blendConstants[2] = 0.0f;
             configInfo.colorBlendInfo.blendConstants[3] = 0.0f;
 
+            configInfo.dynamicStateEnables = {vk::DynamicState::eViewport, vk::DynamicState::eScissor};
+            configInfo.dynamicStateInfo.pDynamicStates = configInfo.dynamicStateEnables.data();
+            configInfo.dynamicStateInfo.dynamicStateCount =
+                    static_cast<uint32_t>(configInfo.dynamicStateEnables.size());
+
+            configInfo.viewportInfo.viewportCount = 1;
+            configInfo.viewportInfo.scissorCount = 1;
+
             auto swapChainExtent = swapChain.getSwapChainExtent();
-            configInfo.viewport = vk::Viewport{0.0f, 0.0f, (float) swapChainExtent.width, (float) swapChainExtent.height, 0.0f, 1.0f};
-            configInfo.scissor = vk::Rect2D{{0, 0}, swapChainExtent};
             configInfo.subpass = 0;
             configInfo.renderPass = swapChain.getRenderPass();
 

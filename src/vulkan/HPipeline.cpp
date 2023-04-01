@@ -20,28 +20,26 @@ void Hellion::HPipeline::createGraphicsPipeline(Hellion::PipeConf conf, std::arr
     std::vector<vk::VertexInputAttributeDescription> atr(attributeDescriptions.begin(), attributeDescriptions.end());
     auto vertexInputInfo = HPipelineHelper::vertexInputState(bindingDescription, atr);
 
-    auto viewportState = HPipelineHelper::viewportState(conf.viewport, conf.scissor);
-
     vk::GraphicsPipelineCreateInfo pipelineInfo = {};
     pipelineInfo.stageCount = 2;
     pipelineInfo.pStages = shaderStages;
 
     pipelineInfo.pVertexInputState = &vertexInputInfo;
     pipelineInfo.pInputAssemblyState = &conf.inputAssemblyInfo;
-    pipelineInfo.pViewportState = &viewportState;
+    pipelineInfo.pViewportState = &conf.viewportInfo;
     pipelineInfo.pRasterizationState = &conf.rasterizationInfo;
     pipelineInfo.pMultisampleState = &conf.multisampleInfo;
-    pipelineInfo.pDepthStencilState = nullptr;  // Optional
+    pipelineInfo.pDepthStencilState = &conf.depthStencilInfo;
     pipelineInfo.pColorBlendState = &conf.colorBlendInfo;
-    pipelineInfo.pDynamicState = nullptr;  // Optional
+    pipelineInfo.pDynamicState = &conf.dynamicStateInfo;
     pipelineInfo.pDepthStencilState = &conf.depthStencilInfo;
 
     pipelineInfo.layout = conf.pipelineLayout;
     pipelineInfo.renderPass = conf.renderPass;
     pipelineInfo.subpass = conf.subpass;
 
-    pipelineInfo.basePipelineHandle = VK_NULL_HANDLE;  // Optional
-    pipelineInfo.basePipelineIndex = -1;               // Optional
+    pipelineInfo.basePipelineHandle = VK_NULL_HANDLE;
+    pipelineInfo.basePipelineIndex = -1;
     try
     {
         pipeline = device.getDevice().createGraphicsPipeline(nullptr, pipelineInfo).value;

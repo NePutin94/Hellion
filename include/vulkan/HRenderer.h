@@ -18,8 +18,8 @@ namespace Hellion
     public:
         HRenderer(HWindow& window, HDevice& device) : window{window}, device{device}
         {
-                recreateSwapChain();
-                createCommandBuffers();
+            recreateSwapChain();
+            createCommandBuffers();
         }
 
         ~HRenderer()
@@ -41,7 +41,7 @@ namespace Hellion
         { return isFrameStarted; }
 
         auto* getSwapChain()
-        {return swapChain.get();}
+        { return swapChain.get(); }
 
         vk::CommandBuffer& getCurrentCommandBuffer()
         {
@@ -58,20 +58,15 @@ namespace Hellion
         vk::CommandBuffer beginFrame()
         {
             assert(!isFrameStarted && "Can't call beginFrame while already in progress");
-
             auto result = swapChain->acquireNextImage();
-            currentImageIndex = result.value;
+          
             if(result.result == vk::Result::eErrorOutOfDateKHR)
             {
                 recreateSwapChain();
                 return nullptr;
             }
 
-            if(result.result !=  vk::Result::eSuccess && result.result !=  vk::Result::eSuboptimalKHR)
-            {
-                throw std::runtime_error("failed to acquire swap chain image!");
-            }
-
+            currentImageIndex = result.value;
             isFrameStarted = true;
 
             auto commandBuffer = getCurrentCommandBuffer();
@@ -122,7 +117,6 @@ namespace Hellion
             renderPassInfo.clearValueCount = static_cast<uint32_t>(clearValues.size());
             renderPassInfo.pClearValues = clearValues.data();
 
-
             commandBuffer.beginRenderPass(renderPassInfo, vk::SubpassContents::eInline);
             vk::Viewport viewport{};
             viewport.x = 0.0f;
@@ -166,19 +160,23 @@ namespace Hellion
         void recreateSwapChain()
         {
             auto extent = window.getExtent();
-            while (extent.width == 0 || extent.height == 0) {
+            while(extent.width == 0 || extent.height == 0)
+            {
                 extent = window.getExtent();
                 glfwWaitEvents();
             }
-            vkDeviceWaitIdle(device.getDevice());
+            device.getDevice().waitIdle();
 
-            if (swapChain == nullptr) {
+            if(swapChain == nullptr)
+            {
                 swapChain = std::make_unique<HSwapChain>(device, extent);
-            } else {
+            } else
+            {
                 std::shared_ptr<HSwapChain> oldSwapChain = std::move(swapChain);
                 swapChain = std::make_unique<HSwapChain>(device, extent, oldSwapChain);
 
-                if (!oldSwapChain->compareSwapFormats(*swapChain.get())) {
+                if(!oldSwapChain->compareSwapFormats(*swapChain.get()))
+                {
                     throw std::runtime_error("Swap chain image(or depth) format has changed!");
                 }
             }

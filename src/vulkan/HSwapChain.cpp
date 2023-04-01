@@ -90,9 +90,11 @@ vk::PresentModeKHR Hellion::HSwapChain::chooseSwapPresentMode(const std::vector<
 
 vk::Extent2D Hellion::HSwapChain::chooseSwapExtent(const vk::SurfaceCapabilitiesKHR& capabilities)
 {
-    if (capabilities.currentExtent.width != std::numeric_limits<uint32_t>::max()) {
+    if(capabilities.currentExtent.width != std::numeric_limits<uint32_t>::max())
+    {
         return capabilities.currentExtent;
-    } else {
+    } else
+    {
         vk::Extent2D actualExtent = windowExtent;
         actualExtent.width = std::max(
                 capabilities.minImageExtent.width,
@@ -329,11 +331,22 @@ void Hellion::HSwapChain::createSyncObjects()
 
 vk::ResultValue<uint32_t> Hellion::HSwapChain::acquireNextImage()
 {
+
     device.getDevice().waitForFences(1, &inFlightFences[currentFrame], VK_TRUE, std::numeric_limits<uint64_t>::max());
 
-    vk::ResultValue result = device.getDevice().acquireNextImageKHR(swapChain, std::numeric_limits<uint64_t>::max(),
-                                                                    imageAvailableSemaphores[currentFrame], nullptr);
-    return result;
+    try
+    {
+        vk::ResultValue result = device.getDevice().acquireNextImageKHR(swapChain, std::numeric_limits<uint64_t>::max(),
+                                                                        imageAvailableSemaphores[currentFrame], nullptr);
+        return result;
+    }
+    catch (vk::OutOfDateKHRError& err)
+    {
+        return vk::ResultValue<uint32_t>{vk::Result::eErrorOutOfDateKHR, 0};
+    } catch (vk::SystemError& err)
+    {
+        throw std::runtime_error("failed to acquire swap chain image!");
+    }
 }
 
 void Hellion::HSwapChain::init()
