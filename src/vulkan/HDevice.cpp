@@ -19,14 +19,13 @@ bool Hellion::HDevice::supported(std::vector<const char*>& extensions, const std
 {
     std::vector<vk::ExtensionProperties> supportedExtensions = vk::enumerateInstanceExtensionProperties();
 
-    if(debug)
+
+    fmt::println("Device can support the following extensions:");
+    for(vk::ExtensionProperties supportedExtension: supportedExtensions)
     {
-        fmt::println("Device can support the following extensions:");
-        for(vk::ExtensionProperties supportedExtension: supportedExtensions)
-        {
-            fmt::println("{}", supportedExtension.extensionName);
-        }
+        fmt::println("{}", supportedExtension.extensionName);
     }
+
 
     bool found;
     for(const char* extension: extensions)
@@ -109,11 +108,11 @@ std::vector<const char*> Hellion::HDevice::getRequiredExtensions()
 void Hellion::HDevice::createInstance()
 {
     vk::ApplicationInfo appInfo = vk::ApplicationInfo("Test", VK_MAKE_API_VERSION(0, 1, 0, 0), "No engine", VK_MAKE_API_VERSION(0, 1, 0, 0),
-                                                      VK_API_VERSION_1_3);
+                                                      VK_HEADER_VERSION_COMPLETE);
     auto extensions = getRequiredExtensions();
     if(!supported(extensions, validationLayers, false))
     {
-        //error
+        throw std::runtime_error("failed to create logical device!");
     }
 
     vk::InstanceCreateInfo createInfo = vk::InstanceCreateInfo(
@@ -539,3 +538,4 @@ void Hellion::HDevice::cleanup()
     instance.destroySurfaceKHR(surface);
     instance.destroy();
 }
+

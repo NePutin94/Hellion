@@ -12,6 +12,7 @@
 #include "tiny_obj_loader.h"
 #include "HTexture.h"
 #include <chrono>
+#include <tracy/TracyVulkan.hpp>
 
 namespace Hellion
 {
@@ -38,8 +39,10 @@ namespace Hellion
 
         RenderSystem& operator=(const RenderSystem&) = delete;
 
-        void draw(vk::CommandBuffer& buffer, uint32_t currentFrame)
+        void draw(vk::CommandBuffer& buffer, uint32_t currentFrame, tracy::VkCtx* tracyCtx)
         {
+            TracyVkZone(tracyCtx, buffer, "RenderSystem::draw")
+
             pipeline->bind(buffer);
 
             buffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, pipelineLayout, 0, 1, &globalDescriptorSets[currentFrame], 0, nullptr);
@@ -55,7 +58,7 @@ namespace Hellion
             buffer.drawIndexed(static_cast<uint32_t>(indices.size()), 1, 0, 0, 0);
         }
 
-        void updateBuffers(uint32_t currentFrame, float width,float height)
+        void updateBuffers(uint32_t currentFrame, float width, float height)
         {
             static auto startTime = std::chrono::high_resolution_clock::now();
 
