@@ -13,14 +13,14 @@ namespace Hellion
 {
 #ifdef HELLION_PROFILING
 #ifdef __GNUC__
-#define HELION_ZONE_PROFILING() ZoneScopedN(__PRETTY_FUNCTION__);
+#define HELLION_ZONE_PROFILING() ZoneScopedN(__PRETTY_FUNCTION__);
 #else
-#define HELION_ZONE_PROFILING() ZoneScopedN(__FUNCSIG__);
+#define HELLION_ZONE_PROFILING() ZoneScopedN(__FUNCSIG__);
 #endif
-#define HELION_GPUZONE_PROFILING(ctx, buf, name) TracyVkZone(ctx,buf,name)
+#define HELLION_GPUZONE_PROFILING(ctx, buf, name) TracyVkZone(ctx,buf,name)
 #else
-#define HELION_ZONE_PROFILING()
-#define HELION_ZONE_PROFILING(name)
+#define HELLION_ZONE_PROFILING()
+#define HELLION_ZONE_PROFILING(name)
 #endif
 
 } // Hellion
