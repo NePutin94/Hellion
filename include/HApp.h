@@ -10,6 +10,7 @@
 #include "vulkan/HBuffer.h"
 #include "vulkan/HRenderer.h"
 #include "vulkan/RenderSystem.h"
+#include <tracy/Tracy.hpp>
 
 namespace Hellion
 {
@@ -28,6 +29,7 @@ namespace Hellion
         {
             while(!window.shouldClose())
             {
+                ZoneScoped;
                 glfwPollEvents();
                 if(auto commandBuffer = renderer.beginFrame())
                 {
@@ -36,7 +38,7 @@ namespace Hellion
 
                     auto exte = renderer.getSwapChain()->getSwapChainExtent();
                     renderSystem.updateBuffers(renderer.getFrameIndex(), exte.width, exte.height);
-                    renderSystem.draw(commandBuffer, renderer.getFrameIndex());
+                    renderSystem.draw(commandBuffer, renderer.getFrameIndex(), renderer.getCurrentTracyCtx());
 
                     renderer.endSwapChainRenderPass(commandBuffer);
                     renderer.endFrame();

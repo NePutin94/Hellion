@@ -9,6 +9,7 @@
 #include "HWindow.h"
 #include "HDevice.h"
 #include <memory>
+#include "../core/Profiling.h"
 
 namespace Hellion
 {

@@ -12,10 +12,11 @@
 #include "tiny_obj_loader.h"
 #include "HTexture.h"
 #include <chrono>
+#include <tracy/TracyVulkan.hpp>
+#include "../core/Profiling.h"
 
 namespace Hellion
 {
-
     class RenderSystem
     {
     public:
@@ -38,8 +39,9 @@ namespace Hellion
 
         RenderSystem& operator=(const RenderSystem&) = delete;
 
-        void draw(vk::CommandBuffer& buffer, uint32_t currentFrame)
+        void draw(vk::CommandBuffer& buffer, uint32_t currentFrame, tracy::VkCtx* tracyCtx)
         {
+            HELLION_ZONE_PROFILING()
             pipeline->bind(buffer);
 
             buffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, pipelineLayout, 0, 1, &globalDescriptorSets[currentFrame], 0, nullptr);
@@ -55,8 +57,9 @@ namespace Hellion
             buffer.drawIndexed(static_cast<uint32_t>(indices.size()), 1, 0, 0, 0);
         }
 
-        void updateBuffers(uint32_t currentFrame, float width,float height)
+        void updateBuffers(uint32_t currentFrame, float width, float height)
         {
+            HELLION_ZONE_PROFILING()
             static auto startTime = std::chrono::high_resolution_clock::now();
 
             auto currentTime = std::chrono::high_resolution_clock::now();
@@ -82,6 +85,7 @@ namespace Hellion
 
         void createVertexBufferVma()
         {
+            HELLION_ZONE_PROFILING()
             vk::DeviceSize bufferSize = sizeof(vertices[0]) * vertices.size();
             auto stagingBuffer = HBuffer(device, bufferSize, vk::BufferUsageFlagBits::eTransferSrc, VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT |
                                                                                                     VMA_ALLOCATION_CREATE_MAPPED_BIT);
@@ -94,6 +98,7 @@ namespace Hellion
 
         void createIndexBufferVma()
         {
+            HELLION_ZONE_PROFILING()
             vk::DeviceSize bufferSize = sizeof(indices[0]) * indices.size();
             auto stagingBuffer = HBuffer(device, bufferSize, vk::BufferUsageFlagBits::eTransferSrc, VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT |
                                                                                                     VMA_ALLOCATION_CREATE_MAPPED_BIT);
@@ -106,6 +111,7 @@ namespace Hellion
 
         void createPipelineLayout()
         {
+            HELLION_ZONE_PROFILING()
             texture = HTexture::createTextureFromFile(device, TEXTURE_PATH.c_str());
 
             globalPool =
@@ -167,6 +173,7 @@ namespace Hellion
 
         void loadModel()
         {
+            HELLION_ZONE_PROFILING()
             tinyobj::attrib_t attrib;
             std::vector<tinyobj::shape_t> shapes;
             std::vector<tinyobj::material_t> materials;
