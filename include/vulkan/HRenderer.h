@@ -9,6 +9,7 @@
 #include "HWindow.h"
 #include "HDevice.h"
 #include "HSwapChain.h"
+#include <tracy/TracyVulkan.hpp>
 
 namespace Hellion
 {
@@ -18,12 +19,15 @@ namespace Hellion
     public:
         HRenderer(HWindow& window, HDevice& device) : window{window}, device{device}
         {
-                recreateSwapChain();
-                createCommandBuffers();
+            recreateSwapChain();
+            createCommandBuffers();
         }
 
         ~HRenderer()
         {
+            for(auto& ctx: vkTracyContext)
+                TracyVkDestroy(ctx)
+
             freeCommandBuffers();
         }
 
@@ -41,12 +45,18 @@ namespace Hellion
         { return isFrameStarted; }
 
         auto* getSwapChain()
-        {return swapChain.get();}
+        { return swapChain.get(); }
 
         vk::CommandBuffer& getCurrentCommandBuffer()
         {
             assert(isFrameStarted && "Cannot get command buffer when frame not in progress");
             return commandBuffers[currentFrameIndex];
+        }
+
+        tracy::VkCtx* getCurrentTracyCtx()
+        {
+            assert(isFrameStarted && "Cannot get command buffer when frame not in progress");
+            return vkTracyContext[currentFrameIndex];
         }
 
         int getFrameIndex() const
@@ -58,26 +68,21 @@ namespace Hellion
         vk::CommandBuffer beginFrame()
         {
             assert(!isFrameStarted && "Can't call beginFrame while already in progress");
-
             auto result = swapChain->acquireNextImage();
-            currentImageIndex = result.value;
+
             if(result.result == vk::Result::eErrorOutOfDateKHR)
             {
                 recreateSwapChain();
                 return nullptr;
             }
 
-            if(result.result !=  vk::Result::eSuccess && result.result !=  vk::Result::eSuboptimalKHR)
-            {
-                throw std::runtime_error("failed to acquire swap chain image!");
-            }
-
+            currentImageIndex = result.value;
             isFrameStarted = true;
 
             auto commandBuffer = getCurrentCommandBuffer();
             vk::CommandBufferBeginInfo beginInfo{};
-
             commandBuffer.begin(beginInfo);
+
             return commandBuffer;
         }
 
@@ -85,6 +90,9 @@ namespace Hellion
         {
             assert(isFrameStarted && "Can't call endFrame while frame is not in progress");
             auto commandBuffer = getCurrentCommandBuffer();
+
+            TracyVkCollect(getCurrentTracyCtx(), commandBuffer)
+
             commandBuffer.end();
 
             auto result = swapChain->submitCommandBuffers(commandBuffer, currentImageIndex);
@@ -122,7 +130,6 @@ namespace Hellion
             renderPassInfo.clearValueCount = static_cast<uint32_t>(clearValues.size());
             renderPassInfo.pClearValues = clearValues.data();
 
-
             commandBuffer.beginRenderPass(renderPassInfo, vk::SubpassContents::eInline);
             vk::Viewport viewport{};
             viewport.x = 0.0f;
@@ -139,24 +146,12 @@ namespace Hellion
         void endSwapChainRenderPass(vk::CommandBuffer commandBuffer)
         {
             assert(isFrameStarted && "Can't call endSwapChainRenderPass if frame is not in progress");
-            assert(
-                    commandBuffer == getCurrentCommandBuffer() &&
-                    "Can't end render pass on command buffer from a different frame");
+            assert(commandBuffer == getCurrentCommandBuffer() && "Can't end render pass on command buffer from a different frame");
             commandBuffer.endRenderPass();
         }
 
     private:
-        void createCommandBuffers()
-        {
-            commandBuffers.resize(HSwapChain::MAX_FRAMES_IN_FLIGHT);
-
-            vk::CommandBufferAllocateInfo allocInfo{};
-            allocInfo.level = vk::CommandBufferLevel::ePrimary;
-            allocInfo.commandPool = device.getCommandPool();
-            allocInfo.commandBufferCount = static_cast<uint32_t>(commandBuffers.size());
-
-            commandBuffers = device.getDevice().allocateCommandBuffers(allocInfo);
-        }
+        void createCommandBuffers();
 
         void freeCommandBuffers()
         {
@@ -166,19 +161,23 @@ namespace Hellion
         void recreateSwapChain()
         {
             auto extent = window.getExtent();
-            while (extent.width == 0 || extent.height == 0) {
+            while(extent.width == 0 || extent.height == 0)
+            {
                 extent = window.getExtent();
                 glfwWaitEvents();
             }
-            vkDeviceWaitIdle(device.getDevice());
+            device.getDevice().waitIdle();
 
-            if (swapChain == nullptr) {
+            if(swapChain == nullptr)
+            {
                 swapChain = std::make_unique<HSwapChain>(device, extent);
-            } else {
+            } else
+            {
                 std::shared_ptr<HSwapChain> oldSwapChain = std::move(swapChain);
                 swapChain = std::make_unique<HSwapChain>(device, extent, oldSwapChain);
 
-                if (!oldSwapChain->compareSwapFormats(*swapChain.get())) {
+                if(!oldSwapChain->compareSwapFormats(*swapChain.get()))
+                {
                     throw std::runtime_error("Swap chain image(or depth) format has changed!");
                 }
             }
@@ -188,6 +187,8 @@ namespace Hellion
         HDevice& device;
         std::unique_ptr<HSwapChain> swapChain;
         std::vector<vk::CommandBuffer> commandBuffers;
+
+        std::vector<tracy::VkCtx*> vkTracyContext;
 
         uint32_t currentImageIndex;
         int currentFrameIndex{0};

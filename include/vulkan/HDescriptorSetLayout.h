@@ -117,11 +117,7 @@ namespace Hellion
             vk::DescriptorPoolCreateFlags poolFlags = vk::DescriptorPoolCreateFlags{};
         };
 
-        HDescriptorPool(
-                HDevice& device,
-                uint32_t maxSets,
-                vk::DescriptorPoolCreateFlags poolFlags,
-                const std::vector<vk::DescriptorPoolSize>& poolSizes)
+        HDescriptorPool(HDevice& device,uint32_t maxSets,vk::DescriptorPoolCreateFlags poolFlags,const std::vector<vk::DescriptorPoolSize>& poolSizes)
                 : device{device}
         {
             vk::DescriptorPoolCreateInfo descriptorPoolInfo{};

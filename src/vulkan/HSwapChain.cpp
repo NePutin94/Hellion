@@ -6,7 +6,7 @@
 
 vk::Result Hellion::HSwapChain::submitCommandBuffers(const vk::CommandBuffer& commandBuffers, uint32_t imageIndex)
 {
-
+    HELLION_ZONE_PROFILING()
     vk::SubmitInfo submitInfo = {};
 
     vk::Semaphore waitSemaphores[] = {imageAvailableSemaphores[currentFrame]};
@@ -90,9 +90,11 @@ vk::PresentModeKHR Hellion::HSwapChain::chooseSwapPresentMode(const std::vector<
 
 vk::Extent2D Hellion::HSwapChain::chooseSwapExtent(const vk::SurfaceCapabilitiesKHR& capabilities)
 {
-    if (capabilities.currentExtent.width != std::numeric_limits<uint32_t>::max()) {
+    if(capabilities.currentExtent.width != std::numeric_limits<uint32_t>::max())
+    {
         return capabilities.currentExtent;
-    } else {
+    } else
+    {
         vk::Extent2D actualExtent = windowExtent;
         actualExtent.width = std::max(
                 capabilities.minImageExtent.width,
@@ -107,6 +109,7 @@ vk::Extent2D Hellion::HSwapChain::chooseSwapExtent(const vk::SurfaceCapabilities
 
 void Hellion::HSwapChain::createSwapChain()
 {
+    HELLION_ZONE_PROFILING()
     SwapChainSupportDetails swapChainSupport = device.getSwapChainSupport();
 
     vk::SurfaceFormatKHR surfaceFormat = chooseSwapSurfaceFormat(swapChainSupport.formats);
@@ -165,6 +168,7 @@ void Hellion::HSwapChain::createSwapChain()
 
 void Hellion::HSwapChain::createImageViews()
 {
+    HELLION_ZONE_PROFILING()
     swapChainImageViews.resize(swapChainImages.size());
     for(size_t i = 0; i < swapChainImages.size(); i++)
     {
@@ -194,6 +198,7 @@ vk::Format Hellion::HSwapChain::findDepthFormat()
 
 void Hellion::HSwapChain::createRenderPass()
 {
+    HELLION_ZONE_PROFILING()
     vk::AttachmentDescription colorAttachment = {};
     colorAttachment.format = swapChainImageFormat;
     colorAttachment.samples = vk::SampleCountFlagBits::e1;
@@ -256,6 +261,7 @@ void Hellion::HSwapChain::createRenderPass()
 
 void Hellion::HSwapChain::createDepthResources()
 {
+    HELLION_ZONE_PROFILING()
     vk::Format depthFormat = findDepthFormat();
     swapChainDepthFormat = depthFormat;
     depthImages.resize(imageCount());
@@ -275,6 +281,7 @@ void Hellion::HSwapChain::createDepthResources()
 
 void Hellion::HSwapChain::createFramebuffers()
 {
+    HELLION_ZONE_PROFILING()
     swapChainFramebuffers.resize(swapChainImageViews.size());
 
     for(size_t i = 0; i < swapChainImageViews.size(); i++)
@@ -329,11 +336,22 @@ void Hellion::HSwapChain::createSyncObjects()
 
 vk::ResultValue<uint32_t> Hellion::HSwapChain::acquireNextImage()
 {
+    HELLION_ZONE_PROFILING()
     device.getDevice().waitForFences(1, &inFlightFences[currentFrame], VK_TRUE, std::numeric_limits<uint64_t>::max());
 
-    vk::ResultValue result = device.getDevice().acquireNextImageKHR(swapChain, std::numeric_limits<uint64_t>::max(),
-                                                                    imageAvailableSemaphores[currentFrame], nullptr);
-    return result;
+    try
+    {
+        vk::ResultValue result = device.getDevice().acquireNextImageKHR(swapChain, std::numeric_limits<uint64_t>::max(),
+                                                                        imageAvailableSemaphores[currentFrame], nullptr);
+        return result;
+    }
+    catch (vk::OutOfDateKHRError& err)
+    {
+        return vk::ResultValue<uint32_t>{vk::Result::eErrorOutOfDateKHR, 0};
+    } catch (vk::SystemError& err)
+    {
+        throw std::runtime_error("failed to acquire swap chain image!");
+    }
 }
 
 void Hellion::HSwapChain::init()
