@@ -15,10 +15,9 @@ void Hellion::HPipeline::createGraphicsPipeline(Hellion::PipeConf conf, std::arr
             HPipelineHelper::shaderStage(fragShaderModule, vk::ShaderStageFlagBits::eFragment);
     vk::PipelineShaderStageCreateInfo shaderStages[] = {vertShaderStageInfo, fragShaderStageInfo};
 
-    auto bindingDescription = HVertex::getBindingDescription();
-    auto attributeDescriptions = HVertex::getAttributeDescriptions();
-    std::vector<vk::VertexInputAttributeDescription> atr(attributeDescriptions.begin(), attributeDescriptions.end());
-    auto vertexInputInfo = HPipelineHelper::vertexInputState(bindingDescription, atr);
+    auto bindingDescription = conf.bindingDescriptions;
+    auto attributeDescriptions = conf.attributeDescriptions;
+    auto vertexInputInfo = HPipelineHelper::vertexInputState(bindingDescription, attributeDescriptions);
 
     vk::GraphicsPipelineCreateInfo pipelineInfo = {};
     pipelineInfo.stageCount = 2;
