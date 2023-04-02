@@ -18,15 +18,6 @@ void Hellion::HDevice::init()
 bool Hellion::HDevice::supported(std::vector<const char*>& extensions, const std::vector<const char*>& layers, bool debug)
 {
     std::vector<vk::ExtensionProperties> supportedExtensions = vk::enumerateInstanceExtensionProperties();
-
-
-    fmt::println("Device can support the following extensions:");
-    for(vk::ExtensionProperties supportedExtension: supportedExtensions)
-    {
-        fmt::println("{}", supportedExtension.extensionName);
-    }
-
-
     bool found;
     for(const char* extension: extensions)
     {

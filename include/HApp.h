@@ -10,6 +10,7 @@
 #include "vulkan/HBuffer.h"
 #include "vulkan/HRenderer.h"
 #include "vulkan/RenderSystem.h"
+#include "vulkan/CanvasSystem.h"
 #include <tracy/Tracy.hpp>
 
 namespace Hellion
@@ -19,7 +20,11 @@ namespace Hellion
     {
     public:
         HApp()
-        {}
+        {
+            canvas.line({0.f, 0.f, 0.f}, {10.f, 10.f, 0.f}, {0, 0, 255, 255});
+            canvas.plane3d({0,1.5,0}, {1,0,0}, {0,0,1}, 40, 40, 10.0f, 10.0f, {1,0,0,1}, {0,255,0,1});
+            canvas.init(renderer.getSwapChainRenderPass(), *renderer.getSwapChain());
+        }
 
         ~HApp()
         {
@@ -29,7 +34,7 @@ namespace Hellion
         {
             while(!window.shouldClose())
             {
-                ZoneScoped;
+                HELLION_ZONE_PROFILING()
                 glfwPollEvents();
                 if(auto commandBuffer = renderer.beginFrame())
                 {
@@ -39,6 +44,9 @@ namespace Hellion
                     auto exte = renderer.getSwapChain()->getSwapChainExtent();
                     renderSystem.updateBuffers(renderer.getFrameIndex(), exte.width, exte.height);
                     renderSystem.draw(commandBuffer, renderer.getFrameIndex(), renderer.getCurrentTracyCtx());
+
+                    canvas.updateBuffers(renderer.getFrameIndex(), exte.width, exte.height);
+                    canvas.draw(commandBuffer, renderer.getFrameIndex(), renderer.getCurrentTracyCtx());
 
                     renderer.endSwapChainRenderPass(commandBuffer);
                     renderer.endFrame();
@@ -54,6 +62,7 @@ namespace Hellion
         HDevice device{window};
         HRenderer renderer{window, device};
         RenderSystem renderSystem{device, renderer.getSwapChainRenderPass(), *renderer.getSwapChain()};
+        CanvasSystem canvas{device};
         //HSwapChain swapChain{window, device};
 
         std::vector<HBuffer> uniformBuffers;

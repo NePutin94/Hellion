@@ -39,23 +39,7 @@ namespace Hellion
 
         RenderSystem& operator=(const RenderSystem&) = delete;
 
-        void draw(vk::CommandBuffer& buffer, uint32_t currentFrame, tracy::VkCtx* tracyCtx)
-        {
-            HELLION_ZONE_PROFILING()
-            pipeline->bind(buffer);
-
-            buffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, pipelineLayout, 0, 1, &globalDescriptorSets[currentFrame], 0, nullptr);
-
-            vk::Buffer vertexBuffers[] = {vertexBuffer->getBuffer()};
-
-            vk::DeviceSize offsets[] = {0};
-
-            buffer.bindVertexBuffers(0, 1, vertexBuffers, offsets);
-
-            buffer.bindIndexBuffer(indexBuffer->getBuffer(), 0, vk::IndexType::eUint32);
-
-            buffer.drawIndexed(static_cast<uint32_t>(indices.size()), 1, 0, 0, 0);
-        }
+        void draw(vk::CommandBuffer& buffer, uint32_t currentFrame, tracy::VkCtx* tracyCtx);
 
         void updateBuffers(uint32_t currentFrame, float width, float height)
         {
@@ -184,13 +168,13 @@ namespace Hellion
                 throw std::runtime_error(warn + err);
             }
 
-            std::unordered_map<Vertex, uint32_t> uniqueVertices{};
+            std::unordered_map<HVertex, uint32_t> uniqueVertices{};
 
             for(const auto& shape: shapes)
             {
                 for(const auto& index: shape.mesh.indices)
                 {
-                    Vertex vertex{};
+                    HVertex vertex{};
 
                     vertex.pos = {
                             attrib.vertices[3 * index.vertex_index + 0],
@@ -225,7 +209,7 @@ namespace Hellion
 
         std::vector<std::unique_ptr<HBuffer>> uboBuffers;
 
-        std::vector<Vertex> vertices;
+        std::vector<HVertex> vertices;
         std::vector<uint32_t> indices;
         std::unique_ptr<HBuffer> vertexBuffer;
         std::unique_ptr<HBuffer> indexBuffer;

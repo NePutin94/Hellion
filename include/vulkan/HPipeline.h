@@ -7,7 +7,6 @@
 
 #include <vulkan/vulkan.hpp>
 #include "HShader.h"
-#include "VulkanHelper.h"
 #include "HSwapChain.h"
 #include "HPipelineHelper.h"
 #include "HVertex.h"

@@ -7,6 +7,7 @@
 
 #include <vulkan/vulkan.hpp>
 #include "HSwapChain.h"
+#include "HVertex.h"
 
 namespace Hellion
 {
@@ -24,10 +25,10 @@ namespace Hellion
             return vertexInputInfo;
         }
 
-        static vk::PipelineInputAssemblyStateCreateInfo inputAssemblyState()
+        static vk::PipelineInputAssemblyStateCreateInfo inputAssemblyState(vk::PrimitiveTopology topology = vk::PrimitiveTopology::eTriangleList)
         {
             vk::PipelineInputAssemblyStateCreateInfo inputAssembly = {};
-            inputAssembly.topology = vk::PrimitiveTopology::eTriangleList;
+            inputAssembly.topology = topology;
             inputAssembly.primitiveRestartEnable = VK_FALSE;
             return inputAssembly;
         }
@@ -154,7 +155,7 @@ namespace Hellion
 
     struct PipeConf
     {
-        std::vector<vk::VertexInputBindingDescription> bindingDescriptions{};
+        vk::VertexInputBindingDescription bindingDescriptions{};
         std::vector<vk::VertexInputAttributeDescription> attributeDescriptions{};
         vk::PipelineInputAssemblyStateCreateInfo inputAssemblyInfo;
         vk::Viewport viewport;
@@ -200,6 +201,37 @@ namespace Hellion
             configInfo.dynamicStateInfo.dynamicStateCount =
                     static_cast<uint32_t>(configInfo.dynamicStateEnables.size());
             configInfo.viewportInfo = HPipelineHelper::viewportState();
+
+            configInfo.bindingDescriptions = HVertex::getBindingDescriptions();
+            auto atr = HVertex::getAttributeDescriptions();
+            std::move(atr.begin(), atr.end(), std::back_inserter(configInfo.attributeDescriptions));
+
+            return configInfo;
+        }
+
+        static PipeConf createDefaultLine(HSwapChain& swapChain)
+        {
+            PipeConf configInfo{};
+            configInfo.inputAssemblyInfo = HPipelineHelper::inputAssemblyState(vk::PrimitiveTopology::eLineList);
+            auto swapChainExtent = swapChain.getSwapChainExtent();
+            configInfo.viewport = vk::Viewport{0.0f, 0.0f, (float) swapChainExtent.width, (float) swapChainExtent.height, 0.0f, 1.0f};
+            configInfo.scissor = vk::Rect2D{{0, 0}, swapChainExtent};
+            configInfo.rasterizationInfo = HPipelineHelper::rasterizationState();
+            configInfo.multisampleInfo = HPipelineHelper::multisampleState();
+            configInfo.colorBlendAttachment = HPipelineHelper::colorBlendAttachmentState();
+            configInfo.colorBlendInfo = HPipelineHelper::colorBlendingState(configInfo.colorBlendAttachment);
+            configInfo.depthStencilInfo = HPipelineHelper::depthStencilState();
+            configInfo.subpass = 0;
+            configInfo.renderPass = swapChain.getRenderPass();
+            configInfo.dynamicStateEnables = {vk::DynamicState::eViewport, vk::DynamicState::eScissor};
+            configInfo.dynamicStateInfo.pDynamicStates = configInfo.dynamicStateEnables.data();
+            configInfo.dynamicStateInfo.dynamicStateCount =
+                    static_cast<uint32_t>(configInfo.dynamicStateEnables.size());
+            configInfo.viewportInfo = HPipelineHelper::viewportState();
+
+            configInfo.bindingDescriptions = HVertexLine::getBindingDescriptions();
+            auto atr = HVertexLine::getAttributeDescriptions();
+            std::move(atr.begin(), atr.end(), std::back_inserter(configInfo.attributeDescriptions));
             return configInfo;
         }
 
@@ -251,6 +283,10 @@ namespace Hellion
             auto swapChainExtent = swapChain.getSwapChainExtent();
             configInfo.subpass = 0;
             configInfo.renderPass = swapChain.getRenderPass();
+
+            configInfo.bindingDescriptions = HVertex::getBindingDescriptions();
+            auto atr = HVertex::getAttributeDescriptions();
+            std::move(atr.begin(), atr.end(), std::back_inserter(configInfo.attributeDescriptions));
 
             return configInfo;
         }
