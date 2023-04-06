@@ -9,13 +9,27 @@
 #include "imgui.h"
 #include "imgui_impl_vulkan.h"
 #include "imgui_impl_glfw.h"
+#include "HPipeline.h"
+#include "HDescriptorSetLayout.h"
+#include "HVertex.h"
 
 namespace Hellion
 {
     class ImGuiRenderer
     {
+    private:
+
+
     public:
         ImGuiRenderer() = default;
+
+        void draw(vk::CommandBuffer& buffer, uint32_t currentFrame, tracy::VkCtx* tracyCtx)
+        {
+            HELLION_ZONE_PROFILING()
+            HELLION_GPUZONE_PROFILING(tracyCtx, buffer, "ImGui draw")
+            ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), buffer);
+        }
+
         void initImgui(vk::Device& device, GLFWwindow* window, vk::Instance& instance, vk::PhysicalDevice& pdevice, vk::Queue& gqueue, vk::RenderPass& renderPass,
                        vk::CommandPool& commandPool)
         {
@@ -84,6 +98,17 @@ namespace Hellion
             ImGui_ImplVulkan_DestroyFontUploadObjects();
         }
 
+        void NewFrame()
+        {
+            ImGui_ImplVulkan_NewFrame();
+            ImGui_ImplGlfw_NewFrame();
+            ImGui::NewFrame();
+        }
+
+        void render()
+        {
+            ImGui::Render();
+        }
     };
 }
 

@@ -36,9 +36,15 @@ namespace Hellion
             {
                 HELLION_ZONE_PROFILING()
                 glfwPollEvents();
+                renderer.getImGuiRender().NewFrame();
+
+                ImGui::ShowDemoWindow();
+
                 if(auto commandBuffer = renderer.beginFrame())
                 {
                     int frameIndex = renderer.getFrameIndex();
+
+                    renderer.getImGuiRender().render();
                     renderer.beginSwapChainRenderPass(commandBuffer);
 
                     auto exte = renderer.getSwapChain()->getSwapChainExtent();
