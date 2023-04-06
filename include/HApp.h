@@ -11,6 +11,7 @@
 #include "vulkan/HRenderer.h"
 #include "vulkan/RenderSystem.h"
 #include "vulkan/CanvasSystem.h"
+#include "HCamera.h"
 #include <tracy/Tracy.hpp>
 
 namespace Hellion
@@ -22,7 +23,7 @@ namespace Hellion
         HApp()
         {
             canvas.line({0.f, 0.f, 0.f}, {10.f, 10.f, 0.f}, {0, 0, 255, 255});
-            canvas.plane3d({0,1.5,0}, {1,0,0}, {0,0,1}, 40, 40, 10.0f, 10.0f, {1,0,0,1}, {0,255,0,1});
+            canvas.plane3d({0, 1.5, 0}, {1, 0, 0}, {0, 0, 1}, 40, 40, 10.0f, 10.0f, {1, 0, 0, 1}, {0, 255, 0, 1});
             canvas.init(renderer.getSwapChainRenderPass(), *renderer.getSwapChain());
         }
 
@@ -38,7 +39,7 @@ namespace Hellion
                 glfwPollEvents();
                 renderer.getImGuiRender().NewFrame();
 
-                ImGui::ShowDemoWindow();
+                camera.update(window.getWindow());
 
                 if(auto commandBuffer = renderer.beginFrame())
                 {
@@ -48,10 +49,10 @@ namespace Hellion
                     renderer.beginSwapChainRenderPass(commandBuffer);
 
                     auto exte = renderer.getSwapChain()->getSwapChainExtent();
-                    renderSystem.updateBuffers(renderer.getFrameIndex(), exte.width, exte.height);
+                    renderSystem.updateBuffers(renderer.getFrameIndex(), exte.width, exte.height, camera);
                     renderSystem.draw(commandBuffer, renderer.getFrameIndex(), renderer.getCurrentTracyCtx());
 
-                    canvas.updateBuffers(renderer.getFrameIndex(), exte.width, exte.height);
+                    canvas.updateBuffers(renderer.getFrameIndex(), exte.width, exte.height, camera);
                     canvas.draw(commandBuffer, renderer.getFrameIndex(), renderer.getCurrentTracyCtx());
 
                     renderer.endSwapChainRenderPass(commandBuffer);
@@ -64,6 +65,7 @@ namespace Hellion
         static constexpr int HEIGHT = 600;
 
     private:
+        HCamera camera{{800, 600}};
         HWindow window{WIDTH, HEIGHT, "Hello Vulkan!"};
         HDevice device{window};
         HRenderer renderer{window, device};

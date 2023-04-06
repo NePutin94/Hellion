@@ -78,22 +78,25 @@ namespace Hellion
         vk::PipelineLayout createPipelineLayout(vk::PipelineLayoutCreateInfo info)
         { return device.createPipelineLayout(info); }
 
-        vk::Device getDevice()
+        vk::Instance& getInstance()
+        { return instance; }
+
+        vk::Device& getDevice()
         { return device; }
 
-        vk::PhysicalDevice getPhysicalDevice()
+        vk::PhysicalDevice& getPhysicalDevice()
         { return physicalDevice; }
 
         vk::Queue getPresentQueue()
         { return presentQueue; }
 
-        vk::Queue getGraphicsQueue()
+        vk::Queue& getGraphicsQueue()
         { return graphicsQueue; }
 
         vk::SurfaceKHR& getSurface()
         { return surface; }
 
-        vk::CommandPool getCommandPool()
+        vk::CommandPool& getCommandPool()
         { return commandPool; }
 
         VmaAllocator getAllocator()
