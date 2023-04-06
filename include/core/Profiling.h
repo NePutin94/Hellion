@@ -21,6 +21,7 @@ namespace Hellion
 #else
 #define HELLION_ZONE_PROFILING()
 #define HELLION_ZONE_PROFILING(name)
+#define HELLION_GPUZONE_PROFILING(ctx, buf, name)
 #endif
 
 } // Hellion
