@@ -240,6 +240,7 @@ void Hellion::HDevice::createLogicalDevice()
 
     auto deviceFeatures = vk::PhysicalDeviceFeatures();
     deviceFeatures.samplerAnisotropy = VK_TRUE;
+    deviceFeatures.geometryShader = VK_TRUE;
 
     auto createInfo = vk::DeviceCreateInfo(vk::DeviceCreateFlags(), static_cast<uint32_t>(queueCreateInfos.size()), queueCreateInfos.data());
     createInfo.pEnabledFeatures = &deviceFeatures;

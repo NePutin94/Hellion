@@ -69,7 +69,7 @@ namespace Hellion
         vk::Framebuffer getFrameBuffer(int index)
         { return swapChainFramebuffers[index]; }
 
-        vk::RenderPass getRenderPass()
+        vk::RenderPass& getRenderPass()
         { return renderPass; }
 
         vk::ImageView getImageView(int index)

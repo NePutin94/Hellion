@@ -14,6 +14,7 @@
 #include <chrono>
 #include <tracy/TracyVulkan.hpp>
 #include "../core/Profiling.h"
+#include "../HCamera.h"
 
 namespace Hellion
 {
@@ -41,7 +42,7 @@ namespace Hellion
 
         void draw(vk::CommandBuffer& buffer, uint32_t currentFrame, tracy::VkCtx* tracyCtx);
 
-        void updateBuffers(uint32_t currentFrame, float width, float height)
+        void updateBuffers(uint32_t currentFrame, float width, float height, HCamera camera)
         {
             HELLION_ZONE_PROFILING()
             static auto startTime = std::chrono::high_resolution_clock::now();
@@ -51,8 +52,8 @@ namespace Hellion
 
             UniformBufferObject ubo{};
             ubo.model = glm::rotate(glm::mat4(1.0f), glm::radians(90.0f), glm::vec3(0.0f, 0.0f, 1.0f));
-            ubo.view = glm::lookAt(glm::vec3(2.0f, 2.0f, 2.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
-            ubo.proj = glm::perspective(glm::radians(45.0f), width / (float) height, 0.1f, 10.0f);
+            ubo.view = camera.getViewMatrix();//glm::lookAt(glm::vec3(2.0f, 2.0f, 2.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+            ubo.proj = camera.getProjectionMatrix();//glm::perspective(glm::radians(45.0f), width / (float) height, 0.1f, 10.0f);
             ubo.proj[1][1] *= -1;
             ubo.time = time * 15;
             memcpy(uboBuffers[currentFrame]->getMappedMemory(), &ubo, sizeof(ubo));

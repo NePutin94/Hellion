@@ -9,6 +9,7 @@
 #include "HWindow.h"
 #include "HDevice.h"
 #include "HSwapChain.h"
+#include "ImGuiRender.h"
 #include <tracy/TracyVulkan.hpp>
 
 namespace Hellion
@@ -21,6 +22,7 @@ namespace Hellion
         {
             recreateSwapChain();
             createCommandBuffers();
+            render.initImgui(device.getDevice(), window.getWindow(), device.getInstance(), device.getPhysicalDevice(), device.getGraphicsQueue(), getSwapChainRenderPass(), device.getCommandPool());
         }
 
         ~HRenderer()
@@ -35,7 +37,7 @@ namespace Hellion
 
         HRenderer& operator=(const HRenderer&) = delete;
 
-        vk::RenderPass getSwapChainRenderPass() const
+        vk::RenderPass& getSwapChainRenderPass() const
         { return swapChain->getRenderPass(); }
 
         float getAspectRatio() const
@@ -143,8 +145,14 @@ namespace Hellion
             commandBuffer.setScissor(0, scissor);
         }
 
+        auto getImGuiRender()
+        {
+            return render;
+        }
+
         void endSwapChainRenderPass(vk::CommandBuffer commandBuffer)
         {
+            ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), commandBuffer);
             assert(isFrameStarted && "Can't call endSwapChainRenderPass if frame is not in progress");
             assert(commandBuffer == getCurrentCommandBuffer() && "Can't end render pass on command buffer from a different frame");
             commandBuffer.endRenderPass();
@@ -182,7 +190,7 @@ namespace Hellion
                 }
             }
         }
-
+        ImGuiRenderer render;
         HWindow& window;
         HDevice& device;
         std::unique_ptr<HSwapChain> swapChain;

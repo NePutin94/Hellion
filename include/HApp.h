@@ -11,6 +11,7 @@
 #include "vulkan/HRenderer.h"
 #include "vulkan/RenderSystem.h"
 #include "vulkan/CanvasSystem.h"
+#include "HCamera.h"
 #include <tracy/Tracy.hpp>
 
 namespace Hellion
@@ -36,16 +37,22 @@ namespace Hellion
             {
                 HELLION_ZONE_PROFILING()
                 glfwPollEvents();
+                renderer.getImGuiRender().NewFrame();
+
+                camera.update(window.getWindow());
+
                 if(auto commandBuffer = renderer.beginFrame())
                 {
                     int frameIndex = renderer.getFrameIndex();
+
+                    renderer.getImGuiRender().render();
                     renderer.beginSwapChainRenderPass(commandBuffer);
 
                     auto exte = renderer.getSwapChain()->getSwapChainExtent();
-                    renderSystem.updateBuffers(renderer.getFrameIndex(), exte.width, exte.height);
+                    renderSystem.updateBuffers(renderer.getFrameIndex(), exte.width, exte.height, camera);
                     renderSystem.draw(commandBuffer, renderer.getFrameIndex(), renderer.getCurrentTracyCtx());
 
-                    canvas.updateBuffers(renderer.getFrameIndex(), exte.width, exte.height);
+                    canvas.updateBuffers(renderer.getFrameIndex(), exte.width, exte.height, camera);
                     canvas.draw(commandBuffer, renderer.getFrameIndex(), renderer.getCurrentTracyCtx());
 
                     renderer.endSwapChainRenderPass(commandBuffer);
@@ -59,6 +66,7 @@ namespace Hellion
         static constexpr int HEIGHT = 600;
 
     private:
+        HCamera camera{{800, 600}};
         HWindow window{WIDTH, HEIGHT, "Hello Vulkan!"};
         HDevice device{window};
         HRenderer renderer{window, device};

@@ -19,11 +19,18 @@ namespace Hellion
     private:
         vk::Pipeline pipeline;
         HDevice& device;
-        std::array<HShader, 2> shaderLayout;
+        std::vector<HShader> shaderLayout;
     public:
-        HPipeline(HDevice& device, std::array<HShader, 2> shaderLayout, PipeConf configInfo) : device{device}, shaderLayout{shaderLayout}
+        HPipeline(HDevice& device, std::array<HShader, 2> shaderLayout, PipeConf configInfo) : device{device}
         {
-            createGraphicsPipeline(std::move(configInfo), std::move(shaderLayout));
+            std::move(shaderLayout.begin(), shaderLayout.end(), std::back_inserter(this->shaderLayout));
+            createGraphicsPipeline(std::move(configInfo));
+        }
+
+        HPipeline(HDevice& device, std::array<HShader, 3> shaderLayout, PipeConf configInfo) : device{device}
+        {
+            std::move(shaderLayout.begin(), shaderLayout.end(), std::back_inserter(this->shaderLayout));
+            createGraphicsPipeline3(std::move(configInfo));
         }
 
         ~HPipeline()
@@ -32,7 +39,9 @@ namespace Hellion
         void bind(vk::CommandBuffer commandBuffer)
         { commandBuffer.bindPipeline(vk::PipelineBindPoint::eGraphics, pipeline); }
 
-        void createGraphicsPipeline(PipeConf conf, std::array<HShader, 2> shaders);
+        void createGraphicsPipeline(PipeConf conf);
+
+        void createGraphicsPipeline3(PipeConf conf);
     };
 }
 
