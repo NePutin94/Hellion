@@ -55,7 +55,7 @@ vk::Result Hellion::HSwapChain::submitCommandBuffers(const vk::CommandBuffer& co
 vk::SurfaceFormatKHR Hellion::HSwapChain::chooseSwapSurfaceFormat(const std::vector<vk::SurfaceFormatKHR>& availableFormats)
 {
     if(availableFormats.size() == 1 && availableFormats[0].format == vk::Format::eUndefined)
-        return {vk::Format::eB8G8R8A8Srgb, vk::ColorSpaceKHR::eSrgbNonlinear};
+        return {vk::Format::eB8G8R8A8Unorm, vk::ColorSpaceKHR::eSrgbNonlinear};
 
     for(const auto& availableFormat: availableFormats)
         if(availableFormat.format == vk::Format::eB8G8R8A8Srgb && availableFormat.colorSpace == vk::ColorSpaceKHR::eSrgbNonlinear)

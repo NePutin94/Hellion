@@ -10,15 +10,38 @@ void Hellion::RenderSystem::draw(vk::CommandBuffer& buffer, uint32_t currentFram
     HELLION_GPUZONE_PROFILING(tracyCtx, buffer, "RenderSystem draw")
     pipeline->bind(buffer);
 
-    buffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, pipelineLayout, 0, 1, &globalDescriptorSets[currentFrame], 0, nullptr);
+//    vk::Buffer vertexBuffers[] = {model.vertices->getBuffer()};
+//
+//    vk::DeviceSize offsets[] = {0};
+//
+//    buffer.bindVertexBuffers(0, 1, vertexBuffers, offsets);
+//
+//    buffer.bindIndexBuffer(model.indices->getBuffer(), 0, vk::IndexType::eUint32);
+//
+//    for(auto& node : model.getNodes())
+//    {
+//        renderNode(buffer, currentFrame, tracyCtx, node);
+//    }
 
-    vk::Buffer vertexBuffers[] = {vertexBuffer->getBuffer()};
-
-    vk::DeviceSize offsets[] = {0};
-
+    const VkDeviceSize offsets[1] = {0};
+    vk::Buffer vertexBuffers[] = {model.vertices->getBuffer()};
     buffer.bindVertexBuffers(0, 1, vertexBuffers, offsets);
+    buffer.bindIndexBuffer(model.indices->getBuffer(), 0, vk::IndexType::eUint32);
+   // buffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, pipelineLayout, 0, 1, &globalDescriptorSets[currentFrame], 0, nullptr);
+    for(auto& node : model.getNodes())
+    {
+        renderNode(buffer, currentFrame, tracyCtx, node);
+    }
 
-    buffer.bindIndexBuffer(indexBuffer->getBuffer(), 0, vk::IndexType::eUint32);
+//    vk::Buffer vertexBuffers[] = {vertexBuffer->getBuffer()};
+//
+//    vk::DeviceSize offsets[] = {0};
+//
+//    buffer.bindVertexBuffers(0, 1, vertexBuffers, offsets);
+//
+//    buffer.bindIndexBuffer(indexBuffer->getBuffer(), 0, vk::IndexType::eUint32);
 
-    buffer.drawIndexed(static_cast<uint32_t>(indices.size()), 1, 0, 0, 0);
+    //model.draw(buffer);
+
+   // buffer.drawIndexed(static_cast<uint32_t>(indices.size()), 1, 0, 0, 0);
 }

@@ -12,6 +12,7 @@
 #include "vulkan/RenderSystem.h"
 #include "vulkan/CanvasSystem.h"
 #include "HCamera.h"
+#include "HModel.h"
 #include <tracy/Tracy.hpp>
 
 namespace Hellion
@@ -23,7 +24,7 @@ namespace Hellion
         HApp()
         {
             canvas.line({0.f, 0.f, 0.f}, {10.f, 10.f, 0.f}, {0, 0, 255, 255});
-            canvas.plane3d({0,1.5,0}, {0,1,0}, {1,0,0}, 40, 40, 10.0f, 10.0f, {1,0,0,1}, {0,255,0,1});
+            canvas.plane3d({0, 1.5, 0}, {0, 1, 0}, {1, 0, 0}, 40, 40, 10.0f, 10.0f, {1, 0, 0, 1}, {0, 255, 0, 1});
             canvas.init(renderer.getSwapChainRenderPass(), *renderer.getSwapChain());
         }
 
@@ -38,6 +39,8 @@ namespace Hellion
                 HELLION_ZONE_PROFILING()
                 glfwPollEvents();
                 renderer.getImGuiRender().NewFrame();
+
+                ImGui::ShowDemoWindow();
 
                 camera.update(window.getWindow());
 

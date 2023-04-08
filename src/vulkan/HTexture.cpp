@@ -4,8 +4,6 @@
 
 #include "../../include/vulkan/HTexture.h"
 
-#define STB_IMAGE_IMPLEMENTATION
-
 #include <stb_image.h>
 
 void Hellion::HTexture::createTextureImage(const std::string& filepath)

@@ -15,9 +15,13 @@ namespace Hellion
     struct HVertex
     {
         glm::vec3 pos;
-        glm::vec3 color;
+        glm::vec4 color;
         glm::vec2 texCoord;
-
+        glm::vec3 normal;
+        glm::vec2 uv0;
+        glm::vec2 uv1;
+        glm::vec4 joint0;
+        glm::vec4 weight0;
         HVertex() = default;
 
         static vk::VertexInputBindingDescription getBindingDescriptions()
@@ -30,9 +34,9 @@ namespace Hellion
             return bindingDescription;
         }
 
-        static std::array<vk::VertexInputAttributeDescription, 3> getAttributeDescriptions()
+        static std::array<vk::VertexInputAttributeDescription, 7> getAttributeDescriptions()
         {
-            std::array<vk::VertexInputAttributeDescription, 3> attributeDescriptions{};
+            std::array<vk::VertexInputAttributeDescription, 7> attributeDescriptions{};
 
             attributeDescriptions[0].binding = 0;
             attributeDescriptions[0].location = 0;
@@ -42,12 +46,32 @@ namespace Hellion
             attributeDescriptions[1].binding = 0;
             attributeDescriptions[1].location = 1;
             attributeDescriptions[1].format = vk::Format::eR32G32B32Sfloat;
-            attributeDescriptions[1].offset = offsetof(HVertex, color);
+            attributeDescriptions[1].offset = offsetof(HVertex, normal);
 
             attributeDescriptions[2].binding = 0;
             attributeDescriptions[2].location = 2;
             attributeDescriptions[2].format = vk::Format::eR32G32Sfloat;
-            attributeDescriptions[2].offset = offsetof(HVertex, texCoord);
+            attributeDescriptions[2].offset = offsetof(HVertex, uv0);
+
+            attributeDescriptions[3].binding = 0;
+            attributeDescriptions[3].location = 3;
+            attributeDescriptions[3].format = vk::Format::eR32G32Sfloat;
+            attributeDescriptions[3].offset = offsetof(HVertex, uv1);
+
+            attributeDescriptions[4].binding = 0;
+            attributeDescriptions[4].location = 4;
+            attributeDescriptions[4].format = vk::Format::eR32G32B32A32Sfloat;
+            attributeDescriptions[4].offset = offsetof(HVertex, joint0);
+
+            attributeDescriptions[5].binding = 0;
+            attributeDescriptions[5].location = 5;
+            attributeDescriptions[5].format = vk::Format::eR32G32B32A32Sfloat;
+            attributeDescriptions[5].offset = offsetof(HVertex, weight0);
+
+            attributeDescriptions[6].binding = 0;
+            attributeDescriptions[6].location = 6;
+            attributeDescriptions[6].format = vk::Format::eR32G32B32A32Sfloat;
+            attributeDescriptions[6].offset = offsetof(HVertex, color);
 
             return attributeDescriptions;
         }
@@ -98,18 +122,20 @@ namespace Hellion
 
 namespace std
 {
+    template<typename T, typename... Rest>
+    void hashCombine(std::size_t& seed, const T& v, const Rest& ... rest)
+    {
+        seed ^= std::hash<T>{}(v) + 0x9e3779b9 + (seed << 6) + (seed >> 2);
+        (hashCombine(seed, rest), ...);
+    }
+
     template<>
     struct hash<Hellion::HVertex>
     {
         size_t operator()(const Hellion::HVertex& x) const
         {
-            std::size_t h1 = std::hash<glm::vec3>{}(x.pos);
-            std::size_t h2 = std::hash<glm::vec3>{}(x.color);
-            std::size_t h3 = std::hash<glm::vec2>{}(x.texCoord);
             size_t seed = 0;
-            seed ^= h1 + 0x9e3779b9 + (seed << 6) + (seed >> 2);
-            seed ^= h2 + 0x9e3779b9 + (seed << 6) + (seed >> 2);
-            seed ^= h3 + 0x9e3779b9 + (seed << 6) + (seed >> 2);
+            hashCombine(seed, x.pos, x.color, x.texCoord);
             return seed;
         }
     };
